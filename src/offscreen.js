@@ -4,19 +4,32 @@
 let tokenizer = null;
 let loading = null;
 
+/** Tell the service worker where we are, so the badge and popup can show it. */
+function report(phase, extra) {
+  try {
+    chrome.runtime.sendMessage(Object.assign({ type: "engine", phase }, extra || {}));
+  } catch (e) {
+    /* worker asleep; it will ask again via engineStatus */
+  }
+}
+
 function getTokenizer() {
   if (tokenizer) return Promise.resolve(tokenizer);
   if (loading) return loading;
+  const startedAt = Date.now();
+  report("loading");
   loading = new Promise((resolve, reject) => {
     // Relative path on purpose: kuromoji joins paths with path.join(), which
     // would mangle the "//" of an absolute chrome-extension:// URL.
     kuromoji.builder({ dicPath: "../vendor/dict" }).build((err, built) => {
       if (err) {
         loading = null;
+        report("error", { error: String((err && err.message) || err) });
         reject(err);
         return;
       }
       tokenizer = built;
+      report("ready", { dictMs: Date.now() - startedAt });
       resolve(built);
     });
   });

@@ -107,8 +107,10 @@
 
 </div>
 
-<footer>
-  <span><kbd>Alt</kbd><kbd>F</kbd> toggles the page</span>
+<footer id="statusBar" data-phase="idle" title="Engine status">
+  <span class="dot"></span>
+  <span id="statusText">Checking…</span>
+  <button id="warmup" class="link" hidden>Start</button>
   <button id="reset" class="link">Reset all</button>
 </footer>
 

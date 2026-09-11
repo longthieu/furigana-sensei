@@ -335,14 +335,48 @@ button { font: inherit; color: inherit; cursor: pointer; }
 
 /* --------------------------------------------------------------- footer */
 
+/* The footer doubles as the status bar: one line that always says what the
+   engine is doing, without costing the popup any extra height. */
 footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 7px;
   padding: 9px 14px;
   border-top: 1px solid var(--line);
   font-size: 11px;
   color: var(--ink-soft);
+}
+#statusText {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--ink-soft);
+}
+[data-phase="ready"] .dot { background: #2f7d5b; }
+[data-phase="error"] .dot { background: #c8503c; }
+[data-phase="starting"] .dot,
+[data-phase="loading"] .dot,
+[data-phase="working"] .dot {
+  background: #c98a2f;
+  animation: fs-pulse 1s ease-in-out infinite;
+}
+[data-phase="error"] #statusText { color: #c8503c; }
+
+@keyframes fs-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dot { animation: none !important; }
 }
 kbd {
   display: inline-block;

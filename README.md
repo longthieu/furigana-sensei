@@ -31,6 +31,23 @@ with a few extras: romaji output, a "skip the kanji I already know" filter, and 
 Dynamic pages (infinite scroll, SPA routing) are handled by a `MutationObserver`, so
 newly-loaded text gets furigana too.
 
+### Seeing what it is doing
+
+The service worker keeps one state machine — `idle → starting → loading → ready`, or
+`error` — and both surfaces read from it:
+
+- **The toolbar badge.** An amber `…` while the tokenizer is starting or the dictionary is
+  loading, a red `!` if it failed, and otherwise the number of annotated lines on the
+  current tab. Nothing to open: if the badge is blank and the page has no furigana, the
+  extension simply has not been asked to do anything.
+- **The status bar** along the bottom of the popup: a coloured dot plus one line — *Loading
+  dictionary… 1.4s*, *Ready · dictionary in 2.1s*, or the actual error text. It polls every
+  250 ms while something is happening and every 1.5 s once it settles. When the engine is
+  idle or broken the bar offers a **Start** button, so you can trigger the load and watch it
+  rather than guessing whether the 17 MB dictionary ever arrived.
+
+`test/background.test.js` drives this state machine directly with a stubbed `chrome` API.
+
 ### Reloading the extension
 
 Clicking *Reload* on `chrome://extensions` orphans the content scripts already running in
@@ -170,8 +187,11 @@ npm test
 - `test/align.test.js` runs the real tokenizer over sample sentences and prints the ruby
   layout (currently 37 aligned words, 0 fallbacks).
 - `test/content.test.js` loads the actual content script into jsdom with a stubbed
-  `chrome` API and asserts the DOM it produces, the skip rules, undo fidelity and
-  idempotency.
+  `chrome` API and asserts the DOM it produces, the skip rules, language filtering, undo
+  fidelity, idempotency, and that an orphaned script shuts down without unhandled
+  rejections.
+- `test/background.test.js` loads the service worker the same way and checks the engine
+  state machine and the badge it paints.
 
 ## Layout
 

@@ -362,6 +362,7 @@
       if (settings.script === "hanviet") await loadHanviet();
       var nodes = scope === "selection" ? collectFromSelection() : collectTextNodes(document.body);
       var n = await annotate(nodes);
+      reportCount();
       hideToast(toast, n ? "Furigana added \u00b7 " + n + " lines" : "No Japanese text here");
       if (n && settings.autoRun) startObserver();
       return n;
@@ -377,10 +378,23 @@
         wrap.replaceWith(document.createTextNode(original == null ? wrap.textContent : original));
       });
     });
+    reportCount();
   }
 
   function annotatedCount() {
     return document.querySelectorAll(".fs-wrap").length;
+  }
+
+  /** Let the service worker badge this tab with what is on it. */
+  function reportCount() {
+    if (!alive()) return;
+    try {
+      chrome.runtime.sendMessage({ type: "annotated", count: annotatedCount() }, function () {
+        void chrome.runtime.lastError;
+      });
+    } catch (e) {
+      shutDown();
+    }
   }
 
   /* -------------------------------------------------- dynamic page updates */

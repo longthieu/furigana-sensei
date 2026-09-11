@@ -196,6 +196,45 @@ async function refreshStatus() {
       : host || "Ready";
 }
 
+/* ------------------------------------------------------------ status bar */
+
+const PHASE_TEXT = {
+  idle: () => "Engine idle — starts on the first Japanese page",
+  starting: () => "Starting the tokenizer\u2026",
+  loading: (st) => `Loading dictionary\u2026 ${(st.elapsed / 1000).toFixed(1)}s`,
+  ready: (st) =>
+    st.dictMs
+      ? `Ready \u00b7 dictionary in ${(st.dictMs / 1000).toFixed(1)}s \u00b7 Alt+F toggles`
+      : "Ready \u00b7 Alt+F toggles the page",
+  error: (st) => st.error || "Engine error"
+};
+
+let pollTimer = null;
+
+async function refreshEngine() {
+  let st;
+  try {
+    st = await chrome.runtime.sendMessage({ type: "engineStatus" });
+  } catch {
+    st = null;
+  }
+  if (!st) {
+    // The service worker is asleep or restarting; that is not an error.
+    st = { phase: "idle", elapsed: 0 };
+  }
+
+  const bar = $("statusBar");
+  bar.dataset.phase = st.phase;
+  $("statusText").textContent = (PHASE_TEXT[st.phase] || PHASE_TEXT.idle)(st);
+  $("statusText").title = st.error || "";
+  $("warmup").hidden = st.phase !== "idle" && st.phase !== "error";
+
+  // Poll quickly while something is happening, slowly once it settles.
+  const busy = st.phase === "starting" || st.phase === "loading";
+  clearTimeout(pollTimer);
+  pollTimer = setTimeout(refreshEngine, busy ? 250 : 1500);
+}
+
 /* ----------------------------------------------------------------- wiring */
 
 function wire() {
@@ -252,6 +291,15 @@ function wire() {
     refreshStatus();
   });
 
+  $("warmup").addEventListener("click", async () => {
+    $("statusBar").dataset.phase = "starting";
+    $("statusText").textContent = "Starting the tokenizer\u2026";
+    try {
+      await chrome.runtime.sendMessage({ type: "warmup" });
+    } catch { /* the status poll will show whatever happened */ }
+    refreshEngine();
+  });
+
   $("reset").addEventListener("click", () => {
     chrome.storage.sync.set(D);
     settings = { ...D };
@@ -275,4 +323,6 @@ function wire() {
   wire();
   selectTab("reading");
   refreshStatus();
+  refreshEngine();
+  addEventListener("unload", () => clearTimeout(pollTimer));
 })();
