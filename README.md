@@ -31,6 +31,15 @@ with a few extras: romaji output, a "skip the kanji I already know" filter, and 
 Dynamic pages (infinite scroll, SPA routing) are handled by a `MutationObserver`, so
 newly-loaded text gets furigana too.
 
+### Reloading the extension
+
+Clicking *Reload* on `chrome://extensions` orphans the content scripts already running in
+open tabs: `chrome.runtime.id` goes away and every `chrome.*` call from them throws
+*"Extension context invalidated"*. The script notices, disconnects its `MutationObserver`
+and stops, rather than filling the console with unhandled rejections. Furigana already on
+the page stays — it is plain `<ruby>` markup — and reloading the tab re-injects the new
+build.
+
 ### Mixed-language pages
 
 Filtering happens per text node *and* per word, so on a page that mixes languages only the

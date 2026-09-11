@@ -25,6 +25,9 @@ function stubChrome(tokenizer) {
     changeListeners,
     api: {
       runtime: {
+        // Chrome always sets this; it becomes undefined when the extension is
+        // reloaded and this content script is orphaned.
+        id: "furigana-sensei-test",
         lastError: undefined,
         getURL: (path) => path,
         sendMessage(msg, cb) {
@@ -177,4 +180,29 @@ kuromoji.builder({ dicPath: "node_modules/kuromoji/dict" }).build(async (err, to
   const once = doc.querySelectorAll("ruby").length;
   await send(stub.listeners, { type: "run", scope: "page" });
   assert(doc.querySelectorAll("ruby").length === once, "re-running does not double-annotate");
+
+  // Reloading the extension orphans this script: chrome.runtime.id goes away
+  // and every chrome.* call throws. Nothing may escape as an unhandled
+  // rejection, and the observer must stop.
+  const unhandled = [];
+  process.on("unhandledRejection", (e) => unhandled.push(e));
+
+  stub.api.runtime.id = undefined;
+  stub.api.runtime.sendMessage = () => {
+    throw new Error("Extension context invalidated.");
+  };
+  await send(stub.listeners, { type: "clear" });
+  const after = await send(stub.listeners, { type: "run", scope: "page" });
+  // Give any stray promise a tick to reject.
+  await new Promise((r) => setTimeout(r, 50));
+
+  assert(
+    doc.querySelectorAll("ruby").length === 0,
+    "an orphaned script annotates nothing instead of throwing"
+  );
+  assert(
+    after && after.annotated === 0,
+    `orphaned run reports zero rather than rejecting (got ${JSON.stringify(after)})`
+  );
+  assert(unhandled.length === 0, `no unhandled rejection (got ${unhandled.map(String)})`);
 });

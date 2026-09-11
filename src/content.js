@@ -28,6 +28,37 @@
   var observer = null;
   var pending = new Set();
   var pendingTimer = null;
+  var stopped = false;
+
+  /* ------------------------------------------------------------ lifecycle --
+     Reloading the extension orphans the content scripts already running in
+     open tabs: every chrome.* call from one then throws "Extension context
+     invalidated". Detect that and shut this instance down quietly instead of
+     letting the MutationObserver keep firing into a dead port. */
+
+  function noop() {}
+
+  function alive() {
+    if (stopped) return false;
+    try {
+      return Boolean(chrome.runtime && chrome.runtime.id);
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function shutDown() {
+    if (stopped) return;
+    stopped = true;
+    stopObserver();
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingTimer = null;
+    }
+    pending.clear();
+    // The furigana already in the DOM is plain markup and stays valid; it is
+    // removed by reloading the page, which is what re-injects the new script.
+  }
 
   /* ---------------------------------------------------------------- utils */
 
@@ -47,7 +78,14 @@
   function loadHanviet() {
     if (hanviet) return Promise.resolve(hanviet);
     if (hanvietLoading) return hanvietLoading;
-    hanvietLoading = fetch(chrome.runtime.getURL("data/hanviet.json"))
+    var url;
+    try {
+      url = chrome.runtime.getURL("data/hanviet.json");
+    } catch (e) {
+      shutDown();
+      return Promise.resolve(null);
+    }
+    hanvietLoading = fetch(url)
       .then(function (r) { return r.json(); })
       .then(function (table) {
         hanviet = table;
@@ -236,18 +274,28 @@
 
   function tokenizeChunks(chunks) {
     return new Promise(function (resolve) {
-      chrome.runtime.sendMessage({ type: "tokenize", chunks: chunks }, function (res) {
-        if (chrome.runtime.lastError || !res || res.error) {
-          console.warn(
-            "[Furigana Sensei]",
-            (chrome.runtime.lastError && chrome.runtime.lastError.message) ||
-              (res && res.error)
-          );
-          resolve(null);
-          return;
-        }
-        resolve(res.results);
-      });
+      if (!alive()) {
+        shutDown();
+        resolve(null);
+        return;
+      }
+      try {
+        chrome.runtime.sendMessage({ type: "tokenize", chunks: chunks }, function (res) {
+          if (chrome.runtime.lastError || !res || res.error) {
+            console.warn(
+              "[Furigana Sensei]",
+              (chrome.runtime.lastError && chrome.runtime.lastError.message) ||
+                (res && res.error)
+            );
+            resolve(null);
+            return;
+          }
+          resolve(res.results);
+        });
+      } catch (e) {
+        shutDown(); // context went away between the check and the call
+        resolve(null);
+      }
     });
   }
 
@@ -276,7 +324,7 @@
   }
 
   async function annotate(nodes) {
-    if (!nodes.length) return 0;
+    if (!nodes.length || !alive()) return 0;
     var total = 0;
 
     for (var start = 0; start < nodes.length; ) {
@@ -307,7 +355,7 @@
   }
 
   async function run(scope) {
-    if (running) return 0;
+    if (running || !alive()) return 0;
     running = true;
     var toast = showToast(scope === "selection" ? "Reading selection…" : "Reading page…");
     try {
@@ -353,6 +401,10 @@
   function startObserver() {
     if (observer || !document.body) return;
     observer = new MutationObserver(function (records) {
+      if (!alive()) {
+        shutDown();
+        return;
+      }
       records.forEach(function (rec) {
         rec.addedNodes.forEach(function (node) {
           if (node.nodeType === Node.TEXT_NODE && nodeIsEligible(node)) pending.add(node);
@@ -379,6 +431,7 @@
 
   async function flushPending() {
     pendingTimer = null;
+    if (!alive()) return;
     var nodes = Array.from(pending).filter(function (n) {
       return n.isConnected;
     });
@@ -439,7 +492,15 @@
 
   function loadSettings() {
     return new Promise(function (resolve) {
+      if (!alive()) {
+        resolve(settings);
+        return;
+      }
       chrome.storage.sync.get(null, function (stored) {
+        if (chrome.runtime.lastError) {
+          resolve(settings);
+          return;
+        }
         settings = Object.assign({}, self.FSDefaults.DEFAULTS, stored || {});
         skipKanji = self.FSDefaults.skipSet(settings.skipLevel);
         applyStyleVars();
@@ -449,7 +510,7 @@
   }
 
   chrome.storage.onChanged.addListener(function (changes, area) {
-    if (area !== "sync") return;
+    if (area !== "sync" || !alive()) return;
     var needsRebuild = false;
     Object.keys(changes).forEach(function (key) {
       settings[key] = changes[key].newValue;
@@ -465,7 +526,7 @@
     }
     if (needsRebuild && annotatedCount()) {
       clear();
-      run("page");
+      run("page").catch(function () { /* page went away mid-run */ });
     }
   });
 
@@ -480,9 +541,10 @@
         });
         return;
       case "run":
-        run(msg.scope || "page").then(function (n) {
-          sendResponse({ annotated: n });
-        });
+        run(msg.scope || "page").then(
+          function (n) { sendResponse({ annotated: n }); },
+          function () { sendResponse({ annotated: 0 }); }
+        );
         return true;
       case "clear":
         clear();
@@ -494,7 +556,7 @@
           clear();
           stopObserver();
         } else {
-          run("page");
+          run("page").catch(noop);
         }
         return;
     }
@@ -502,13 +564,17 @@
 
   // Auto-run
   loadSettings().then(function () {
-    if (!settings.enabled || !settings.autoRun || blocked()) return;
+    if (!settings.enabled || !settings.autoRun || blocked() || !alive()) return;
     // Cheap sniff first: textContent avoids the reflow that innerText forces.
     var sample = document.body ? (document.body.textContent || "").slice(0, 6000) : "";
     if (!JAPANESE.test(sample)) return;
-    chrome.runtime.sendMessage({ type: "warmup" }, function () {
-      void chrome.runtime.lastError;
-      run("page");
-    });
-  });
+    try {
+      chrome.runtime.sendMessage({ type: "warmup" }, function () {
+        void chrome.runtime.lastError;
+        run("page").catch(noop);
+      });
+    } catch (e) {
+      shutDown();
+    }
+  }, noop);
 })();
