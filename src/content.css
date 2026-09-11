@@ -1,0 +1,163 @@
+/* Furigana Sensei — injected into every page, so every rule is scoped to .fs-*.
+   The palette deliberately borrows the page's own `currentColor` instead of
+   painting brand colours over someone else's design. */
+
+.fs-wrap {
+  line-height: var(--fs-line-height, 2);
+}
+
+.fs-wrap ruby {
+  ruby-position: over;
+  -webkit-ruby-position: before;
+  ruby-align: center;
+  border-radius: 3px;
+  transition: background-color 0.12s ease;
+}
+
+/* Follow the word you are reading. currentColor keeps this legible on a white
+   blog and on a black terminal-themed site alike. */
+.fs-wrap ruby:hover {
+  background-color: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.fs-wrap rt {
+  font-size: var(--fs-size, 55%);
+  color: var(--fs-color, inherit);
+  opacity: var(--fs-opacity, 1);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, sans-serif;
+  font-weight: 400;
+  font-style: normal;
+  letter-spacing: -0.01em;
+  text-align: center;
+  white-space: nowrap;
+
+  /* Pages style their body text in ways a reading must not inherit. */
+  text-transform: none;
+  text-decoration: none;
+  text-shadow: none;
+  -webkit-text-stroke: 0;
+
+  /* keep copied text free of readings */
+  -webkit-user-select: none;
+  user-select: none;
+
+  animation: fs-rt-in 200ms ease-out both;
+}
+
+/* Latin annotations — an English gloss over katakana, or a Hán-Việt reading
+   over kanji — need a latin face and a touch less size than kana of the same
+   width. Hán-Việt carries tone marks, so it must not be squeezed further. */
+.fs-wrap rt.fs-en,
+.fs-wrap rt.fs-hv {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: calc(var(--fs-size, 55%) * 0.92);
+  letter-spacing: 0.005em;
+}
+
+@keyframes fs-rt-in {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: var(--fs-opacity, 1); transform: none; }
+}
+
+/* ---------------------------------------------------------- quiz mode --
+   Readings are hidden, but an annotated word still shows a faint dotted rule
+   so you know there is something to recall before you hover it. */
+
+html.fs-hover-only .fs-wrap ruby {
+  /* Borders are not painted on display:ruby, so the hint is a text decoration. */
+  text-decoration: underline dotted color-mix(in srgb, currentColor 55%, transparent);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 2px;
+}
+html.fs-hover-only .fs-wrap ruby:hover {
+  text-decoration-color: transparent;
+}
+html.fs-hover-only .fs-wrap rt {
+  opacity: 0;
+  animation: none;
+  transition: opacity 0.14s ease;
+}
+html.fs-hover-only .fs-wrap ruby:hover rt {
+  opacity: var(--fs-opacity, 1);
+}
+
+/* ------------------------------------------------------------- toast --- */
+
+.fs-toast {
+  position: fixed;
+  z-index: 2147483647;
+  right: 16px;
+  bottom: 16px;
+
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 14px 9px 11px;
+  max-width: 260px;
+
+  border: 1px solid rgba(20, 22, 28, 0.08);
+  border-radius: 10px;
+  background: #f7f4ee;
+  color: #1d1e22;
+  box-shadow: 0 1px 2px rgba(20, 22, 28, 0.08), 0 10px 28px rgba(20, 22, 28, 0.16);
+
+  font: 500 12.5px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.005em;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.fs-toast.fs-show {
+  opacity: 1;
+  transform: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fs-toast {
+    border-color: rgba(255, 255, 255, 0.09);
+    background: #202228;
+    color: #eceef2;
+  }
+}
+
+/* spinner while tokenizing, ring + tick when finished */
+.fs-toast-dot {
+  flex: 0 0 auto;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 2px solid color-mix(in srgb, #2f4a7d 25%, transparent);
+  border-top-color: #2f4a7d;
+  animation: fs-spin 0.7s linear infinite;
+}
+.fs-toast.fs-done .fs-toast-dot {
+  border-color: #2f4a7d;
+  background: #2f4a7d;
+  animation: none;
+}
+.fs-toast.fs-done .fs-toast-dot::after {
+  content: "";
+  display: block;
+  width: 3px;
+  height: 6px;
+  margin: 1px 0 0 4px;
+  border: solid #f7f4ee;
+  border-width: 0 1.6px 1.6px 0;
+  transform: rotate(45deg);
+}
+@media (prefers-color-scheme: dark) {
+  .fs-toast-dot { border-color: color-mix(in srgb, #8fb0e8 25%, transparent); border-top-color: #8fb0e8; }
+  .fs-toast.fs-done .fs-toast-dot { border-color: #8fb0e8; background: #8fb0e8; }
+  .fs-toast.fs-done .fs-toast-dot::after { border-color: #202228; }
+}
+
+@keyframes fs-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fs-wrap rt { animation: none; }
+  .fs-toast { transition: opacity 0.2s ease; transform: none; }
+  .fs-toast-dot { animation: none; }
+}

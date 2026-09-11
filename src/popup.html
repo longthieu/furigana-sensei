@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Furigana Sensei</title>
+<link rel="stylesheet" href="popup.css">
+</head>
+<body>
+
+<header class="bar">
+  <span class="mark">振</span>
+  <div class="titles">
+    <h1>Furigana Sensei</h1>
+    <p id="status">…</p>
+  </div>
+  <button id="power" class="power" aria-pressed="true" title="Turn the extension on or off">
+    <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+      <path d="M12 3v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      <path d="M6.2 6.6a8 8 0 1 0 11.6 0" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+    </svg>
+  </button>
+</header>
+
+<section class="stage">
+  <div id="preview" class="paper"></div>
+  <div class="pills">
+    <button id="run" class="pill primary">Whole page</button>
+    <button id="runSel" class="pill">Selection</button>
+    <button id="clear" class="pill icon" title="Remove furigana">
+      <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+        <path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+      </svg>
+    </button>
+  </div>
+</section>
+
+<nav class="tabs" id="tabs" role="tablist">
+  <button role="tab" data-tab="reading" aria-selected="true">Reading</button>
+  <button role="tab" data-tab="style" aria-selected="false">Style</button>
+  <button role="tab" data-tab="sites" aria-selected="false">Sites</button>
+  <span class="ink" id="ink"></span>
+</nav>
+
+<div class="panels">
+
+  <section class="panel" data-panel="reading">
+    <div class="cards" id="script">
+      <button data-value="hiragana"><b>あ</b><span>Hiragana</span></button>
+      <button data-value="katakana"><b>ア</b><span>Katakana</span></button>
+      <button data-value="romaji"><b>a</b><span>Romaji</span></button>
+      <button data-value="hanviet"><b>漢</b><span>Hán-Việt</span></button>
+    </div>
+
+    <p class="label">Already know these — skip them</p>
+    <div class="chips" id="skipLevel">
+      <button data-value="none">Nothing</button>
+      <button data-value="grade1">Grade 1 <em>80</em></button>
+      <button data-value="grade2">Grade 1–2 <em>240</em></button>
+    </div>
+
+    <p class="label">Katakana loanwords</p>
+    <div class="chips" id="katakanaMode">
+      <button data-value="off">Leave</button>
+      <button data-value="kana">Reading</button>
+      <button data-value="english">English</button>
+    </div>
+
+    <ul class="opts">
+      <li><label><input type="checkbox" id="autoRun"><span>Run automatically on Japanese pages</span></label></li>
+      <li><label><input type="checkbox" id="hoverOnly"><span>Quiz mode — reveal on hover</span></label></li>
+    </ul>
+  </section>
+
+  <section class="panel" data-panel="style" hidden>
+    <label class="slider">Size <input type="range" id="size" min="30" max="90" step="5"><output id="sizeOut"></output></label>
+    <label class="slider">Fade <input type="range" id="opacity" min="20" max="100" step="5"><output id="opacityOut"></output></label>
+    <label class="slider">Spacing <input type="range" id="lineHeight" min="1.2" max="3" step="0.1"><output id="lineHeightOut"></output></label>
+
+    <p class="label">Colour</p>
+    <div class="swatches" id="swatches">
+      <button data-color="" class="inherit" title="Match the page">A</button>
+      <button data-color="#2f4a7d" style="--sw:#2f4a7d"></button>
+      <button data-color="#c8503c" style="--sw:#c8503c"></button>
+      <button data-color="#2f7d5b" style="--sw:#2f7d5b"></button>
+      <button data-color="#8b5cf6" style="--sw:#8b5cf6"></button>
+      <button data-color="#8a8a92" style="--sw:#8a8a92"></button>
+      <label class="custom" title="Custom colour">
+        <input type="color" id="color">
+      </label>
+    </div>
+  </section>
+
+  <section class="panel" data-panel="sites" hidden>
+    <div class="site-row">
+      <div>
+        <b id="hostName">this site</b>
+        <span id="siteState">Furigana is on here</span>
+      </div>
+      <label class="switch">
+        <input type="checkbox" id="siteOff">
+        <span class="track"><span class="thumb"></span></span>
+      </label>
+    </div>
+    <p class="label">Turned off on</p>
+    <ul class="blocklist" id="blocklist"></ul>
+  </section>
+
+</div>
+
+<footer>
+  <span><kbd>Alt</kbd><kbd>F</kbd> toggles the page</span>
+  <button id="reset" class="link">Reset all</button>
+</footer>
+
+<script src="defaults.js"></script>
+<script src="kana.js"></script>
+<script src="loanwords.js"></script>
+<script src="popup.js"></script>
+</body>
+</html>

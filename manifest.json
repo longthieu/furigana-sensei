@@ -1,0 +1,73 @@
+{
+  "manifest_version": 3,
+  "name": "Furigana Sensei",
+  "version": "1.0.0",
+  "description": "Adds furigana above kanji on any Japanese web page — hiragana, katakana, romaji or Hán-Việt readings. For learners.",
+  "minimum_chrome_version": "116",
+  "permissions": [
+    "storage",
+    "offscreen",
+    "contextMenus",
+    "activeTab"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_popup": "src/popup.html",
+    "default_title": "Furigana Sensei",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "128": "icons/icon128.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "128": "icons/icon128.png",
+    "48": "icons/icon48.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "src/defaults.js",
+        "src/kana.js",
+        "src/align.js",
+        "src/loanwords.js",
+        "src/content.js"
+      ],
+      "css": [
+        "src/content.css"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "vendor/dict/*",
+        "data/*"
+      ],
+      "matches": [
+        "<all_urls>"
+      ]
+    }
+  ],
+  "commands": {
+    "toggle-furigana": {
+      "suggested_key": {
+        "default": "Alt+F"
+      },
+      "description": "Toggle furigana on the current page"
+    }
+  }
+}

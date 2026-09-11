@@ -1,0 +1,366 @@
+/* Furigana Sensei popup — ink on paper. */
+:root {
+  --paper: #f7f4ee;
+  --card: #ffffff;
+  --ink: #1d1e22;
+  --ink-soft: #6f6f78;
+  --line: #e3ded4;
+  --accent: #2f4a7d;
+  --accent-wash: #e8edf6;
+  --on-accent: #ffffff;
+  --shadow: 0 1px 2px rgba(29, 30, 34, 0.06), 0 6px 18px rgba(29, 30, 34, 0.07);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #17181c;
+    --card: #202228;
+    --ink: #eceef2;
+    --ink-soft: #9a9aa4;
+    --line: #2e3138;
+    --accent: #8fb0e8;
+    --accent-wash: #232c3c;
+    --on-accent: #14171d;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 8px 20px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 344px;
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+button { font: inherit; color: inherit; cursor: pointer; }
+
+/* ------------------------------------------------------------------ bar */
+
+.bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+}
+.mark {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border-radius: 50%;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 15px;
+  font-weight: 600;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+.titles { flex: 1; min-width: 0; }
+.titles h1 { margin: 0; font-size: 13.5px; font-weight: 600; letter-spacing: -0.01em; }
+#status {
+  margin: 1px 0 0;
+  font-size: 11px;
+  color: var(--ink-soft);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.power {
+  flex: 0 0 auto;
+  width: 30px; height: 30px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--card);
+  color: var(--ink-soft);
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+.power[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-wash);
+}
+
+/* ---------------------------------------------------------------- stage */
+
+.stage { padding: 0 14px 14px; }
+
+.paper {
+  padding: 12px 12px 10px;
+  border-radius: 12px;
+  background: var(--card);
+  box-shadow: var(--shadow);
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  font-size: 18px;
+  line-height: 2;
+  text-align: center;
+  overflow: hidden;
+}
+.paper rt {
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+  font-size: var(--p-size, 55%);
+  opacity: var(--p-opacity, 1);
+  color: var(--p-color, inherit);
+  user-select: none;
+}
+
+.pills { display: flex; gap: 6px; margin-top: 8px; }
+.pill {
+  flex: 1;
+  padding: 8px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 12px;
+  white-space: nowrap;
+  transition: border-color 0.15s, background 0.15s;
+}
+.pill:hover { border-color: var(--accent); }
+.pill.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+  font-weight: 600;
+}
+.pill.primary:hover { filter: brightness(1.08); }
+.pill.icon { flex: 0 0 38px; display: grid; place-items: center; color: var(--ink-soft); }
+.pill.icon:hover { color: #c8503c; border-color: #c8503c; }
+
+/* ----------------------------------------------------------------- tabs */
+
+.tabs {
+  position: relative;
+  display: flex;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.tabs button {
+  flex: 1;
+  padding: 9px 0 10px;
+  border: 0;
+  background: none;
+  font-size: 12px;
+  color: var(--ink-soft);
+  transition: color 0.15s;
+}
+.tabs button[aria-selected="true"] { color: var(--ink); font-weight: 600; }
+.ink {
+  position: absolute;
+  left: 0; bottom: -1px;
+  height: 2px;
+  background: var(--accent);
+  border-radius: 2px;
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), width 0.22s;
+}
+
+/* Fixed height, not min-height: the popup keeps one size on every tab, and any
+   panel taller than this scrolls inside itself rather than pushing the popup
+   past Chrome's 600px ceiling. */
+.panels {
+  padding: 14px;
+  height: 296px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.panel > *:first-child { margin-top: 0; }
+
+.label {
+  margin: 12px 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* --------------------------------------------------------- reading tab */
+
+.cards { display: flex; gap: 5px; }
+.cards button {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 9px 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+.cards button b {
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.1;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", serif;
+}
+.cards button span { font-size: 9.5px; color: var(--ink-soft); white-space: nowrap; }
+.cards button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent);
+}
+.cards button[aria-pressed="true"] span { color: var(--accent); }
+
+.chips { display: flex; gap: 6px; }
+.chips button {
+  flex: 1;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+.chips button em {
+  font-style: normal;
+  font-size: 9.5px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.chips button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 600;
+}
+.chips button[aria-pressed="true"] em { color: var(--accent); }
+
+.opts { list-style: none; margin: 14px 0 0; padding: 0; }
+.opts li + li { border-top: 1px solid var(--line); }
+.opts label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 0;
+  cursor: pointer;
+  font-size: 12.5px;
+}
+.opts input { accent-color: var(--accent); width: 14px; height: 14px; }
+
+/* ----------------------------------------------------------- style tab */
+
+.slider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+  font-size: 12px;
+}
+.slider > input { flex: 1; accent-color: var(--accent); }
+.slider output {
+  width: 36px;
+  text-align: right;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.swatches { display: flex; gap: 7px; align-items: center; }
+.swatches button,
+.swatches .custom {
+  width: 28px; height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--sw, var(--card));
+  display: grid; place-items: center;
+  overflow: hidden;
+}
+.swatches .inherit { font-size: 12px; color: var(--ink-soft); }
+.swatches button[aria-pressed="true"] {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--accent);
+}
+.swatches .custom {
+  background: conic-gradient(#c8503c, #d8b23c, #2f7d5b, #2f4a7d, #8b5cf6, #c8503c);
+  cursor: pointer;
+}
+.swatches .custom input { opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+
+/* ----------------------------------------------------------- sites tab */
+
+.site-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--card);
+}
+.site-row > div { flex: 1; min-width: 0; }
+.site-row b {
+  display: block;
+  font-size: 12.5px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.site-row span { font-size: 11px; color: var(--ink-soft); }
+
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.track {
+  display: block; width: 36px; height: 21px;
+  border-radius: 11px; background: var(--line);
+  transition: background 0.15s; cursor: pointer;
+}
+.thumb {
+  display: block; width: 17px; height: 17px; margin: 2px;
+  border-radius: 50%; background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+  transition: transform 0.15s;
+}
+.switch input:checked + .track { background: #c8503c; }
+.switch input:checked + .track .thumb { transform: translateX(15px); }
+
+.blocklist { list-style: none; margin: 0; padding: 0; max-height: 168px; overflow-y: auto; }
+.blocklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 2px 6px 10px;
+  border-bottom: 1px solid var(--line);
+  font-size: 12px;
+}
+.blocklist li span { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.blocklist button {
+  border: 0; background: none; padding: 2px 6px;
+  color: var(--ink-soft); font-size: 15px; line-height: 1;
+}
+.blocklist button:hover { color: #c8503c; }
+.blocklist .empty {
+  justify-content: center;
+  border: 0;
+  color: var(--ink-soft);
+  font-size: 11.5px;
+  padding: 14px 0;
+}
+
+/* --------------------------------------------------------------- footer */
+
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 14px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--ink-soft);
+}
+kbd {
+  display: inline-block;
+  min-width: 17px;
+  padding: 1px 4px;
+  margin-right: 2px;
+  border: 1px solid var(--line);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--card);
+  font: inherit;
+  font-size: 10px;
+  text-align: center;
+}
+.link {
+  border: 0; background: none; padding: 0;
+  color: var(--ink-soft); font-size: 11px; text-decoration: underline;
+}
+.link:hover { color: #c8503c; }
+
+body.off .stage, body.off .panels, body.off .tabs { opacity: 0.42; pointer-events: none; }

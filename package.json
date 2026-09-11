@@ -1,0 +1,19 @@
+{
+  "name": "furigana-sensei",
+  "version": "1.0.0",
+  "description": "Chrome extension that adds furigana readings above kanji on any Japanese web page.",
+  "scripts": {
+    "test": "node test/align.test.js && node test/content.test.js",
+    "sync-vendor": "cp node_modules/kuromoji/build/kuromoji.js vendor/kuromoji.js && cp node_modules/kuromoji/dict/*.dat.gz vendor/dict/",
+    "build": "rm -f dist/furigana-sensei.zip && mkdir -p dist && zip -qr dist/furigana-sensei.zip manifest.json src vendor data icons -x '*.DS_Store' && echo 'dist/furigana-sensei.zip'",
+    "build-hanviet": "python3 tools/build-hanviet.py \"${SCRATCH:-.}\""
+  },
+  "license": "MIT",
+  "dependencies": {
+    "kuromoji": "^0.1.2"
+  },
+  "devDependencies": {
+    "jsdom": "^29.1.1"
+  },
+  "private": true
+}
