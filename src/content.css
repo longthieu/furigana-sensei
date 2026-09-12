@@ -12,6 +12,9 @@
   ruby-align: center;
   border-radius: 3px;
   transition: background-color 0.12s ease;
+  /* Readings of two adjacent words would otherwise touch and read as one
+     word: 毎日 + 少 came out "mỗi nhậtthiểu". */
+  margin-inline: 0.07em;
 }
 
 /* Follow the word you are reading. currentColor keeps this legible on a white

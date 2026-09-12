@@ -158,7 +158,7 @@ button { font: inherit; color: inherit; cursor: pointer; }
    past Chrome's 600px ceiling. */
 .panels {
   padding: 14px;
-  height: 296px;
+  height: 330px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }

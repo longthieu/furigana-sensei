@@ -3,7 +3,10 @@
 A Chrome (MV3) extension that prints furigana — hiragana, katakana or romaji readings —
 above the kanji on any Japanese web page. Built along the same lines as
 [Furigana Plus](https://chromewebstore.google.com/detail/furigana-plus/kaebmfgmehefgiphckeahegicpfddhan),
-with a few extras: romaji output, a "skip the kanji I already know" filter, and a hover-reveal quiz mode.
+with a few extras: romaji output, Hán-Việt readings, a "skip the kanji I already know"
+filter, a hover-reveal quiz mode, and a kanji reference panel.
+
+![Furigana on a Japanese page](docs/screenshots/page.png)
 
 ## Install (unpacked)
 
@@ -95,6 +98,8 @@ and breaks the line, so `パソコン` reads *PC*, not *PC (personal computer)*.
 
 ## The reference panel
 
+![The reference panel, with the water radical highlighted inside 漢](docs/screenshots/panel.png)
+
 Click a word that has furigana and a panel opens beside it:
 
 - **The word** — its reading, its Hán-Việt, and an English gloss from JMdict (18,002 common
@@ -144,6 +149,8 @@ anywhere in the glyph, like 灬 — no meaning is claimed at all and the chip sa
 "shape — also in 点馬魚" instead.
 
 ## Hán-Việt readings
+
+![The same page with Hán-Việt readings](docs/screenshots/hanviet.png)
 
 `data/hanviet.json` maps 9,689 kanji to their Sino-Vietnamese reading — 2,126 of the 2,136
 jōyō and 775 jinmeiyō. It is built by `tools/build-hanviet.py` from three sources, none of
@@ -198,6 +205,8 @@ are all bundled, so the extension works offline and sends nothing anywhere.
 > `text-decoration: underline dotted`, not a `border-bottom`.
 
 ## The popup
+
+<img src="docs/screenshots/popup.png" width="344" alt="The popup">
 
 Three tabs — **Reading**, **Style**, **Sites** — under a live preview card that renders the
 sample sentence with whatever settings are currently selected, so you can see the effect of

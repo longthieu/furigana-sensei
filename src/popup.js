@@ -6,7 +6,6 @@ const $ = (id) => document.getElementById(id);
 
 // Hand-written sample so the preview never needs the tokenizer.
 const SAMPLE = [
-  ["東京", "トウキョウ"], ["の", ""], ["学校", "ガッコウ"], ["で", ""],
   ["日本語", "ニホンゴ"], ["を", ""], ["勉強", "ベンキョウ"], ["します", ""]
 ];
 const KATA_WORD = "コーヒー";
