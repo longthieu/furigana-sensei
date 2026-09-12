@@ -540,6 +540,89 @@
     return panel;
   }
 
+  /* Stroke drawings come from KanjiVG, sharded by codepoint so one kanji
+     costs ~60 KB rather than the whole 5 MB. */
+  var strokeShards = {};
+  var SVG_NS = "http://www.w3.org/2000/svg";
+
+  function shardOf(ch) {
+    return ch.codePointAt(0).toString(16).slice(0, 2);
+  }
+
+  function loadStrokes(ch) {
+    var shard = shardOf(ch);
+    if (strokeShards[shard]) {
+      return Promise.resolve(strokeShards[shard] && strokeShards[shard][ch]);
+    }
+    if (!alive()) return Promise.resolve(null);
+    return loadJson("strokes/" + shard + ".json")
+      .then(function (data) {
+        strokeShards[shard] = data;
+        return data[ch];
+      })
+      .catch(function () {
+        strokeShards[shard] = {};   // do not retry a missing shard
+        return null;
+      });
+  }
+
+  function svgEl(name, attrs) {
+    var node = document.createElementNS(SVG_NS, name);
+    Object.keys(attrs).forEach(function (k) {
+      node.setAttribute(k, attrs[k]);
+    });
+    return node;
+  }
+
+  /** Draw the character from its strokes, with the stroke order numbered. */
+  function strokeDrawing(paths) {
+    var svg = svgEl("svg", { viewBox: "0 0 109 109", class: "fs-strokes" });
+
+    paths.forEach(function (d) {
+      svg.appendChild(
+        svgEl("path", {
+          d: d,
+          fill: "none",
+          stroke: "currentColor",
+          "stroke-width": "3.4",
+          "stroke-linecap": "round",
+          "stroke-linejoin": "round"
+        })
+      );
+    });
+
+    // Number each stroke at the point it starts from.
+    var numbers = svgEl("g", { class: "fs-stroke-nums" });
+    paths.forEach(function (d, i) {
+      var start = /^M\s*(-?[\d.]+)[,\s]+(-?[\d.]+)/.exec(d);
+      if (!start) return;
+      var label = svgEl("text", { x: start[1], y: start[2], dy: "-1.5" });
+      label.textContent = String(i + 1);
+      numbers.appendChild(label);
+    });
+    svg.appendChild(numbers);
+
+    return svg;
+  }
+
+  /** Redraw the character one stroke at a time, in order. */
+  function playStrokes(svg) {
+    var paths = svg.querySelectorAll("path");
+    var delay = 0;
+    Array.prototype.forEach.call(paths, function (path) {
+      var length = path.getTotalLength ? path.getTotalLength() : 40;
+      var duration = Math.max(160, length * 7);
+      path.style.transition = "none";
+      path.style.strokeDasharray = length + " " + length;
+      path.style.strokeDashoffset = String(length);
+      setTimeout(function () {
+        path.style.transition = "stroke-dashoffset " + duration + "ms linear";
+        path.style.strokeDashoffset = "0";
+      }, delay);
+      delay += duration + 55;
+    });
+  }
+
   /** Keep the panel on screen once its real height is known. */
   function fitPanel() {
     if (!panel) return;
@@ -583,6 +666,20 @@
 
     var glyph = el("div", "fs-glyph", ch);
     block.appendChild(glyph);
+
+    // Swap the text for a drawing once its shard arrives. A page with no
+    // Japanese font would otherwise show the Chinese form of the glyph.
+    loadStrokes(ch).then(function (paths) {
+      if (!paths || !glyph.isConnected) return;
+      var svg = strokeDrawing(paths);
+      glyph.textContent = "";
+      glyph.classList.add("fs-glyph-drawn");
+      glyph.title = "Click to play the stroke order";
+      glyph.appendChild(svg);
+      glyph.addEventListener("click", function () {
+        playStrokes(svg);
+      });
+    });
 
     var body = el("div", "fs-kanji-body");
     if (!entry) {
@@ -648,7 +745,7 @@
       panel.appendChild(kanjiBlock(ch));
     }
 
-    panel.appendChild(el("p", "fs-credit", "KANJIDIC2 \u00b7 KRADFILE \u00b7 JMdict \u2014 EDRDG, CC BY-SA"));
+    panel.appendChild(el("p", "fs-credit", "KANJIDIC2 \u00b7 KRADFILE \u00b7 JMdict \u2014 EDRDG \u00b7 strokes: KanjiVG \u2014 CC BY-SA"));
     fitPanel();
   }
 

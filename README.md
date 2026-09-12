@@ -99,8 +99,10 @@ Click a word that has furigana and a panel opens beside it:
 
 - **The word** — its reading, its Hán-Việt, and an English gloss from JMdict (18,002 common
   entries). A word outside that list says so rather than guessing.
-- **Each kanji**, large in a Mincho print face, with its Hán-Việt, meanings, on/kun
-  readings, classical radical, stroke count and school grade.
+- **Each kanji, drawn rather than typeset** — a vector image from KanjiVG, with its
+  Hán-Việt, meanings, on/kun readings, classical radical, stroke count and school grade.
+  Hover it for stroke numbers; click it and the character redraws itself one stroke at a
+  time, in order.
 - **What it is built from** — a chip per component, each labelled with its meaning.
 
 Inside a link a plain click still follows the link; <kbd>Alt</kbd>+click opens the panel
@@ -109,6 +111,17 @@ there. The whole thing can be turned off in the popup.
 The data — `data/kanji.json` (10,384 characters), `data/components.json` (253) and
 `data/words.json` (18,002) — is built by `tools/build-kanji.py` and totals 2.4 MB, fetched
 the first time you open the panel and never before.
+
+**Why the kanji are images.** A page that does not load a Japanese font falls back to a
+Chinese one, and the glyphs genuinely differ — 骨, 直, 次 and samples like them are drawn
+differently in the two languages, so a learner copying the shape off the screen would be
+copying the wrong one. An SVG from KanjiVG always shows the Japanese form, whatever the
+page's fonts are, and carries stroke order with it.
+
+`data/strokes/` is 5 MB across 84 shards, keyed by the first two hex digits of the
+codepoint, so looking at one kanji fetches about 60 KB rather than the lot. Paths are
+rounded to one decimal — plenty for a 109-unit viewBox drawn at 74 px, and a fifth smaller
+than KanjiVG's two.
 
 **One thing worth knowing about the components.** KRADFILE is a *visual* decomposition
 built for radical-based lookup, not an etymology: 亜 is listed as ｜一口 because that is
@@ -230,9 +243,9 @@ src/    defaults.js  kana.js  align.js  loanwords.js  content.js  content.css
         background.js  offscreen.html  offscreen.js
         popup.html  popup.css  popup.js
 data/   hanviet.json  kanji.json  components.json  words.json
-                                          (2.5 MB total, all fetched lazily)
+        strokes/*.json                    (7.5 MB total, all fetched lazily)
 vendor/ kuromoji.js  dict/*.dat.gz        (17 MB — vendored, see `npm run sync-vendor`)
-tools/  build-hanviet.py  build-kanji.py
+tools/  build-hanviet.py  build-kanji.py  build-strokes.py
 icons/
 ```
 
@@ -247,6 +260,7 @@ The code is MIT. The bundled data is not all under the same terms:
 |---|---|
 | `vendor/` (IPADIC via kuromoji.js) | Apache-2.0 |
 | `data/kanji.json`, `data/components.json`, `data/words.json` | derived from KANJIDIC2, KRADFILE/RADKFILE and JMdict — © [EDRDG](https://www.edrdg.org/), **CC BY-SA 4.0**. The reference panel credits them on screen. |
+| `data/strokes/*.json` | derived from [KanjiVG](https://kanjivg.tagaini.net), © Ulrich Apel, **CC BY-SA 3.0** |
 | `data/hanviet.json` | built from hanviet-pinyin-words (MIT), kyujitai (MIT) and Unihan |
 
-CC BY-SA is share-alike: those three files, and anything derived from them, stay under it.
+CC BY-SA is share-alike: those files, and anything derived from them, stay under it.
