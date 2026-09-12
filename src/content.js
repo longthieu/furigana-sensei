@@ -549,16 +549,17 @@
     return ch.codePointAt(0).toString(16).slice(0, 2);
   }
 
+  /** @returns {Promise<{p: string[], c?: Array}|null>} */
   function loadStrokes(ch) {
     var shard = shardOf(ch);
     if (strokeShards[shard]) {
-      return Promise.resolve(strokeShards[shard] && strokeShards[shard][ch]);
+      return Promise.resolve(strokeShards[shard][ch] || null);
     }
     if (!alive()) return Promise.resolve(null);
     return loadJson("strokes/" + shard + ".json")
       .then(function (data) {
         strokeShards[shard] = data;
-        return data[ch];
+        return data[ch] || null;
       })
       .catch(function () {
         strokeShards[shard] = {};   // do not retry a missing shard
@@ -575,10 +576,13 @@
   }
 
   /** Draw the character from its strokes, with the stroke order numbered. */
-  function strokeDrawing(paths) {
+  function strokeDrawing(paths, only) {
     var svg = svgEl("svg", { viewBox: "0 0 109 109", class: "fs-strokes" });
 
-    paths.forEach(function (d) {
+    paths.forEach(function (d, i) {
+      // `only` keeps one component's strokes, drawn in the position it
+      // occupies inside the whole character.
+      if (only && (i + 1 < only[0] || i + 1 > only[1])) return;
       svg.appendChild(
         svgEl("path", {
           d: d,
@@ -586,10 +590,12 @@
           stroke: "currentColor",
           "stroke-width": "3.4",
           "stroke-linecap": "round",
-          "stroke-linejoin": "round"
+          "stroke-linejoin": "round",
+          "data-i": String(i + 1)
         })
       );
     });
+    if (only) return svg;
 
     // Number each stroke at the point it starts from.
     var numbers = svgEl("g", { class: "fs-stroke-nums" });
@@ -644,6 +650,56 @@
     return node;
   }
 
+  /** What a KanjiVG component means: 氵 is a variant of 水, so ask 水. */
+  function componentMeaning(element, original) {
+    var candidates = original ? [original, element] : [element];
+    for (var i = 0; i < candidates.length; i++) {
+      var ch = candidates[i];
+      var entry = ref.kanji[ch];
+      if (entry && entry.m && entry.m.length) return entry.m[0];
+      var label = ref.components[ch];
+      if (typeof label === "string") return label;
+      if (Array.isArray(label)) return label[1];
+    }
+    return "";
+  }
+
+  /**
+   * Chips built from KanjiVG's own structure: a drawing of the part in the
+   * place it sits, and hovering one lights those strokes up in the character.
+   */
+  function componentChips(entry, bigSvg) {
+    var wrap = el("div", "fs-parts");
+
+    entry.c.forEach(function (part) {
+      var element = part[0];
+      var original = part[1];
+      var from = part[3];
+      var to = part[4];
+
+      var chip = el("button", "fs-part fs-part-img");
+      chip.type = "button";
+      chip.appendChild(strokeDrawing(entry.p, [from, to]));
+      chip.append(el("b", null, element), el("span", null, componentMeaning(element, original)));
+
+      function highlight(on) {
+        bigSvg.classList.toggle("fs-focusing", on);
+        Array.prototype.forEach.call(bigSvg.querySelectorAll("path"), function (path) {
+          var i = Number(path.getAttribute("data-i"));
+          path.classList.toggle("fs-hot", on && i >= from && i <= to);
+        });
+      }
+      chip.addEventListener("mouseenter", function () { highlight(true); });
+      chip.addEventListener("mouseleave", function () { highlight(false); });
+      chip.addEventListener("focus", function () { highlight(true); });
+      chip.addEventListener("blur", function () { highlight(false); });
+
+      wrap.appendChild(chip);
+    });
+
+    return wrap;
+  }
+
   /** One component chip: the glyph as KRADFILE writes it, plus what it means. */
   function componentChip(part) {
     var entry = ref.components[part];
@@ -669,9 +725,9 @@
 
     // Swap the text for a drawing once its shard arrives. A page with no
     // Japanese font would otherwise show the Chinese form of the glyph.
-    loadStrokes(ch).then(function (paths) {
-      if (!paths || !glyph.isConnected) return;
-      var svg = strokeDrawing(paths);
+    loadStrokes(ch).then(function (strokes) {
+      if (!strokes || !glyph.isConnected) return;
+      var svg = strokeDrawing(strokes.p);
       glyph.textContent = "";
       glyph.classList.add("fs-glyph-drawn");
       glyph.title = "Click to play the stroke order";
@@ -679,6 +735,15 @@
       glyph.addEventListener("click", function () {
         playStrokes(svg);
       });
+
+      // KanjiVG knows how the character is actually put together; prefer it
+      // over KRADFILE's visual index when it has an opinion.
+      if (strokes.c && block.isConnected) {
+        var chips = componentChips(strokes, svg);
+        var existing = block.querySelector(".fs-parts");
+        if (existing) existing.replaceWith(chips);
+        else block.querySelector(".fs-kanji-body").appendChild(chips);
+      }
     });
 
     var body = el("div", "fs-kanji-body");

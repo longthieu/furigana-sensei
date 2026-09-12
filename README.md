@@ -103,7 +103,10 @@ Click a word that has furigana and a panel opens beside it:
   Hán-Việt, meanings, on/kun readings, classical radical, stroke count and school grade.
   Hover it for stroke numbers; click it and the character redraws itself one stroke at a
   time, in order.
-- **What it is built from** — a chip per component, each labelled with its meaning.
+- **What it is built from** — a chip per component, each one a small drawing of that part
+  *in the place it sits inside the character*, labelled with its meaning. Hover a chip and
+  those strokes light up in the big character while the rest fades, so you can see exactly
+  which piece is which.
 
 Inside a link a plain click still follows the link; <kbd>Alt</kbd>+click opens the panel
 there. The whole thing can be turned off in the popup.
@@ -118,21 +121,27 @@ differently in the two languages, so a learner copying the shape off the screen 
 copying the wrong one. An SVG from KanjiVG always shows the Japanese form, whatever the
 page's fonts are, and carries stroke order with it.
 
-`data/strokes/` is 5 MB across 84 shards, keyed by the first two hex digits of the
+`data/strokes/` is 5.4 MB across 84 shards, keyed by the first two hex digits of the
 codepoint, so looking at one kanji fetches about 60 KB rather than the lot. Paths are
 rounded to one decimal — plenty for a 109-unit viewBox drawn at 74 px, and a fifth smaller
 than KanjiVG's two.
 
-**One thing worth knowing about the components.** KRADFILE is a *visual* decomposition
-built for radical-based lookup, not an etymology: 亜 is listed as ｜一口 because that is
-what the glyph looks like. It also writes several radical forms as an ordinary kanji that
-contains them — 漢 is listed with 汁, meaning 氵, not "soup". The build script finds every
-one of those mechanically (radkfile records the stroke count of the shape a radical stands
-for, so a mismatch against the character's own count gives them away) and then takes the
-meaning from the classical radical its kanji overwhelmingly share: 汁 → 水 *water* at 88%
-agreement, 忙 → 心 *heart* at 99%. Where they share no radical — the stand-in marks a shape
-that can sit anywhere in the glyph, like 灬 — no meaning is claimed at all and the chip
-says "shape — also in 点馬魚" instead.
+**Where the components come from.** KanjiVG's SVGs are built out of nested
+`<g kvg:element="…">` groups, and that nesting is a real decomposition: 漢 is 氵 + 艹 + 口 +
+夫, 勉 is 免 + 力. Each group also owns a run of consecutive strokes, which is what makes
+the highlight possible — a component is simply a stroke range. 6,197 of the 6,413 drawn
+kanji have a breakdown this way.
+
+KRADFILE is the fallback for the rest, and it is a different kind of thing: a *visual*
+index built for radical-based lookup, not an etymology. It lists 亜 as ｜一口 because that
+is what the glyph looks like, and it writes several radical forms as an ordinary kanji that
+contains them — 漢 appears with 汁, meaning 氵, not "soup". The build script finds every one
+of those mechanically (radkfile records the stroke count of the shape a radical stands for,
+so a mismatch against the character's own count gives them away) and takes the meaning from
+the classical radical its kanji overwhelmingly share: 汁 → 水 *water* at 88% agreement, 忙 →
+心 *heart* at 99%. Where they share no radical — the stand-in marks a shape that can sit
+anywhere in the glyph, like 灬 — no meaning is claimed at all and the chip says
+"shape — also in 点馬魚" instead.
 
 ## Hán-Việt readings
 
@@ -243,7 +252,7 @@ src/    defaults.js  kana.js  align.js  loanwords.js  content.js  content.css
         background.js  offscreen.html  offscreen.js
         popup.html  popup.css  popup.js
 data/   hanviet.json  kanji.json  components.json  words.json
-        strokes/*.json                    (7.5 MB total, all fetched lazily)
+        strokes/*.json                    (7.9 MB total, all fetched lazily)
 vendor/ kuromoji.js  dict/*.dat.gz        (17 MB — vendored, see `npm run sync-vendor`)
 tools/  build-hanviet.py  build-kanji.py  build-strokes.py
 icons/

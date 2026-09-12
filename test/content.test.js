@@ -208,10 +208,35 @@ kuromoji.builder({ dicPath: "node_modules/kuromoji/dict" }).build(async (err, to
     panel && panel.querySelectorAll(".fs-kanji").length === 2,
     "one block per kanji in the word"
   );
-  const chips = panel ? [...panel.querySelectorAll(".fs-part")].map((c) => c.textContent) : [];
+  // The chips start from KRADFILE, then KanjiVG's real structure replaces them.
+  for (let i = 0; i < 60 && !panel.querySelector(".fs-part-img"); i++) {
+    await new Promise((r) => setTimeout(r, 50));
+  }
+  const first = panel.querySelectorAll(".fs-kanji")[0];
+  const chips = [...first.querySelectorAll(".fs-part")].map((c) => c.textContent);
   assert(
-    chips.some((c) => c.includes("power")) && chips.some((c) => c.includes("excuse")),
-    `components are labelled with their meaning (got ${JSON.stringify(chips)})`
+    chips.length === 2 && chips.some((c) => c.includes("power")) && chips.some((c) => c.includes("excuse")),
+    `勉 breaks down as 免 + 力 per KanjiVG, not KRADFILE's four (got ${JSON.stringify(chips)})`
+  );
+  assert(
+    [...first.querySelectorAll(".fs-part")].every((c) => c.querySelector("svg")),
+    "each component chip carries a drawing of its own strokes"
+  );
+
+  // Hovering a chip lights that component up inside the character.
+  const bigSvg = first.querySelector(".fs-glyph svg");
+  const chip = first.querySelector(".fs-part");
+  chip.dispatchEvent(new window.MouseEvent("mouseenter"));
+  const hot = [...bigSvg.querySelectorAll("path.fs-hot")];
+  assert(
+    bigSvg.classList.contains("fs-focusing") && hot.length > 0 &&
+      hot.length < bigSvg.querySelectorAll("path").length,
+    `hovering a chip highlights only that component's strokes (${hot.length} of ${bigSvg.querySelectorAll("path").length})`
+  );
+  chip.dispatchEvent(new window.MouseEvent("mouseleave"));
+  assert(
+    bigSvg.querySelectorAll("path.fs-hot").length === 0,
+    "leaving the chip clears the highlight"
   );
 
   // 漢 is written with 汁 in KRADFILE, standing for 氵 — it must not say "soup".

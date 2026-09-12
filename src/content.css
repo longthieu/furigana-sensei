@@ -296,6 +296,32 @@ html.fs-hover-only .fs-wrap ruby:hover rt {
   color: #1d1e22;
 }
 
+/* A chip that carries a drawing of its own part, in the place that part sits
+   inside the character. */
+button.fs-part {
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  font-size: 10.5px;
+  color: #55555e;
+}
+button.fs-part:hover,
+button.fs-part:focus-visible {
+  border-color: #2f4a7d;
+  outline: none;
+}
+.fs-part .fs-strokes {
+  width: 20px;
+  height: 20px;
+  margin: -1px 0;
+  flex: 0 0 auto;
+  color: #55555e;
+}
+
+/* Hovering a chip lights its strokes up in the big character. */
+.fs-strokes.fs-focusing path { opacity: 0.16; transition: opacity 0.12s ease; }
+.fs-strokes.fs-focusing path.fs-hot { opacity: 1; stroke: #c8503c; }
+
 .fs-credit {
   margin-top: 10px !important;
   padding-top: 8px;
@@ -317,6 +343,10 @@ html.fs-hover-only .fs-wrap ruby:hover rt {
   .fs-strokes { color: #eceef2; }
   .fs-stroke-nums text { fill: #f0705a; stroke: #171920; }
   .fs-part { border-color: rgba(255, 255, 255, 0.14); color: #a1a1aa; }
+  button.fs-part { color: #a1a1aa; }
+  button.fs-part:hover, button.fs-part:focus-visible { border-color: #8fb0e8; }
+  .fs-part .fs-strokes { color: #a1a1aa; }
+  .fs-strokes.fs-focusing path.fs-hot { stroke: #f0705a; }
   .fs-part b { color: #eceef2; }
   .fs-hanviet { color: #8fb0e8; }
   .fs-word-sub, .fs-readings { color: #a1a1aa; }
