@@ -83,8 +83,16 @@ reading above each kanji and offering a dictionary entry for a word on request.
 | `offscreen` | The Japanese morphological analyser needs a DOM to load its 17 MB dictionary, which a service worker cannot provide. One offscreen document holds a single tokenizer so the dictionary is parsed once per session instead of once per tab. |
 | `contextMenus` | Adds "Add furigana to selection", "Add furigana to whole page" and "Remove furigana" to the right-click menu. |
 | `activeTab` | The extension requests no host access at install. When the user clicks the toolbar icon, presses the shortcut, or uses the context menu, activeTab grants access to that one tab so the furigana code can be injected there. |
-| `scripting` | Injects the content script into the tab the user just asked about, and — only for origins the user has explicitly granted — registers it to run automatically. |
-| `<all_urls>` as an **optional** host permission | Not requested at install. It is requested at runtime, through Chrome's own prompt, only when the user turns on "Run automatically on Japanese pages", because Japanese text can appear on any site and automatic furigana cannot be scoped in advance. Turning the option off revokes it. The access is used solely to read page text in order to place readings above it; nothing is transmitted anywhere, and individual sites can still be excluded in the popup's Sites tab. |
+| `scripting` | Injects the content script into the tab the user just asked about. It is also used to register that script for automatic injection, but only on origins the user has explicitly granted at runtime by turning on "Run automatically on Japanese pages" — the extension declares no host permissions at install, only an optional `<all_urls>` that Chrome prompts for at that moment and that is revoked when the option is switched back off. In either case the access is used solely to read page text in order to place readings above it; nothing is transmitted anywhere, and individual sites can still be excluded in the popup's Sites tab. |
+
+**There is no "host permission" field to fill in any more, and that is the point** — the
+dashboard only shows one when the manifest declares `host_permissions` or a broad
+`content_scripts` match, and this manifest declares neither. `optional_host_permissions` is
+granted at runtime, so it does not get a field of its own; the `scripting` justification
+above carries that explanation instead.
+
+The five fields you should see are `storage`, `offscreen`, `contextMenus`, `activeTab` and
+`scripting`.
 
 **Privacy policy URL** (a required field — the store demands one from anything that handles
 user data at all, even data that never leaves the device)
