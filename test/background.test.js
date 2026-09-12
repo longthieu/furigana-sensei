@@ -9,6 +9,8 @@ function assert(cond, label) {
 
 const badge = { text: [], color: [] };
 const listeners = { message: [], command: [], installed: [], tabRemoved: [] };
+const scripting = { registered: [], injected: [] };
+let grantedOrigins = [];
 
 global.self = global;
 global.importScripts = (file) => require(path.join(__dirname, "..", "src", file));
@@ -19,14 +21,32 @@ global.chrome = {
     getContexts: async () => [],
     onMessage: { addListener: (fn) => listeners.message.push(fn) },
     onInstalled: { addListener: (fn) => listeners.installed.push(fn) },
+    onStartup: { addListener: () => {} },
     sendMessage: async () => ({})
   },
   offscreen: { createDocument: async () => {} },
+  permissions: {
+    getAll: async () => ({ origins: grantedOrigins }),
+    onAdded: { addListener: () => {} },
+    onRemoved: { addListener: () => {} }
+  },
+  scripting: {
+    insertCSS: async () => {},
+    executeScript: async ({ target }) => scripting.injected.push(target.tabId),
+    getRegisteredContentScripts: async () => scripting.registered,
+    registerContentScripts: async (s) => scripting.registered.push(...s),
+    updateContentScripts: async () => {},
+    unregisterContentScripts: async () => (scripting.registered.length = 0)
+  },
   action: {
     setBadgeText: async (o) => badge.text.push(o),
     setBadgeBackgroundColor: async (o) => badge.color.push(o)
   },
-  tabs: { query: async () => [], sendMessage: async () => {}, onRemoved: { addListener: (fn) => listeners.tabRemoved.push(fn) } },
+  tabs: {
+    query: async () => [],
+    sendMessage: async () => { throw new Error("no receiving end"); },
+    onRemoved: { addListener: (fn) => listeners.tabRemoved.push(fn) }
+  },
   commands: { onCommand: { addListener: (fn) => listeners.command.push(fn) } },
   contextMenus: { removeAll: (cb) => cb && cb(), create: () => {}, onClicked: { addListener: () => {} } },
   storage: { sync: { get: async () => ({}), set: async () => {} }, local: { get: async () => ({}) } }
@@ -88,5 +108,28 @@ function send(msg, sender = {}) {
   assert(
     badge.text.some((b) => b.text === "" && b.tabId === 7),
     "clearing a page clears its badge"
+  );
+
+  // No site access at install: the script is injected on a gesture instead.
+  const injected = await send({ type: "ensureInjected", tabId: 12 });
+  assert(injected && injected.ok === true, "a gesture injects the content script");
+  assert(
+    scripting.injected.includes(12),
+    `the injection targets the asked-for tab (got ${JSON.stringify(scripting.injected)})`
+  );
+
+  // Nothing granted yet, so nothing should be registered to run on its own.
+  await send({ type: "syncRegistration" });
+  assert(
+    scripting.registered.length === 0,
+    "with no granted origins, no content script is registered"
+  );
+
+  grantedOrigins = ["<all_urls>"];
+  await send({ type: "syncRegistration" });
+  assert(
+    scripting.registered.length === 1 &&
+      scripting.registered[0].matches[0] === "<all_urls>",
+    `granting all sites registers automatic injection (got ${JSON.stringify(scripting.registered)})`
   );
 })();

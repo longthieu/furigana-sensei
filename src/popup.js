@@ -12,6 +12,7 @@ const KATA_WORD = "コーヒー";
 
 let settings = { ...D };
 let hanviet = null; // lazily fetched, same table the content script uses
+let grantedAllSites = false;
 let tab = null;
 let host = "";
 
@@ -118,7 +119,8 @@ function renderControls() {
   $("power").setAttribute("aria-pressed", String(settings.enabled));
   document.body.classList.toggle("off", !settings.enabled);
 
-  $("autoRun").checked = settings.autoRun;
+  // Reflect what is actually granted, not just what was last stored.
+  $("autoRun").checked = settings.autoRun && grantedAllSites;
   $("hoverOnly").checked = settings.hoverOnly;
   $("lookup").checked = settings.lookup;
 
@@ -173,14 +175,36 @@ function save(patch) {
   renderControls();
 }
 
-function tell(message) {
+/**
+ * The popup cannot inject anything itself, so anything that needs the content
+ * script present goes through the service worker first — that is where
+ * activeTab can be spent.
+ */
+async function tell(message, { ensure = false } = {}) {
+  if (!tab) return null;
+  if (ensure) {
+    try {
+      await chrome.runtime.sendMessage({ type: "ensureInjected", tabId: tab.id });
+    } catch {
+      /* fall through and let the send below fail quietly */
+    }
+  }
   return new Promise((resolve) => {
-    if (!tab) return resolve(null);
     chrome.tabs.sendMessage(tab.id, message, (res) => {
       void chrome.runtime.lastError;
       resolve(res);
     });
   });
+}
+
+const ALL_SITES = { origins: ["<all_urls>"] };
+
+async function hasAllSites() {
+  try {
+    return await chrome.permissions.contains(ALL_SITES);
+  } catch {
+    return false;
+  }
 }
 
 async function refreshStatus() {
@@ -245,9 +269,36 @@ function wire() {
     if (btn) selectTab(btn.dataset.tab);
   });
 
-  for (const id of ["autoRun", "hoverOnly", "lookup"]) {
+  for (const id of ["hoverOnly", "lookup"]) {
     $(id).addEventListener("change", (e) => save({ [id]: e.target.checked }));
   }
+
+  // Running without being asked each time needs access to the sites it runs
+  // on, so the checkbox is really a permission prompt.
+  $("autoRun").addEventListener("change", async (e) => {
+    if (e.target.checked) {
+      let granted = false;
+      try {
+        granted = await chrome.permissions.request(ALL_SITES);
+      } catch {
+        granted = false;
+      }
+      if (!granted) {
+        e.target.checked = false;
+        $("autoRunNote").textContent = "Needs access to the sites you read.";
+        return;
+      }
+    } else {
+      try {
+        await chrome.permissions.remove(ALL_SITES);
+      } catch {
+        /* nothing granted to remove */
+      }
+    }
+    $("autoRunNote").textContent = "";
+    save({ autoRun: e.target.checked });
+    chrome.runtime.sendMessage({ type: "syncRegistration" }).catch(() => {});
+  });
 
   for (const group of ["script", "skipLevel", "katakanaMode"]) {
     $(group).addEventListener("click", (e) => {
@@ -311,6 +362,7 @@ function wire() {
   const stored = await chrome.storage.sync.get(null);
   settings = { ...D, ...stored };
   [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  grantedAllSites = await hasAllSites();
   try {
     host = new URL(tab.url).hostname;
   } catch {

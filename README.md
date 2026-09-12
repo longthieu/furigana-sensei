@@ -270,6 +270,22 @@ icons/
 The dictionary is vendored because MV3 forbids remote code; it is the same IPADIC that
 ships with [kuromoji.js](https://github.com/takuyaa/kuromoji.js) (Apache-2.0).
 
+## Permissions
+
+The extension requests **no site access at install**. It reaches a page in one of two ways:
+
+- **On a gesture** — clicking the toolbar icon, <kbd>Alt</kbd>+<kbd>F</kbd>, or the
+  right-click menu. `activeTab` grants access to that one tab, and the service worker
+  injects the content script there.
+- **On its own**, but only after you turn on *Run automatically on Japanese pages*, which
+  is really a permission prompt: it asks Chrome for all-sites access and registers a
+  dynamic content script for it. Switching it off revokes the permission and unregisters
+  the script.
+
+That keeps `<all_urls>` out of the install-time prompt, which is both the honest default
+and what the Chrome Web Store asks for — broad host permissions at install trigger a
+slower, in-depth review.
+
 ## Privacy
 
 No network requests, no accounts, no analytics; page text is read in memory to place the

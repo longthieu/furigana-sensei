@@ -76,8 +76,9 @@ reading above each kanji and offering a dictionary entry for a word on request.
 | `storage` | Stores the user's own settings — which reading script to show, appearance, and the list of sites they have switched the extension off on. Nothing else is stored, and nothing leaves the browser. |
 | `offscreen` | The Japanese morphological analyser needs a DOM to load its 17 MB dictionary, which a service worker cannot provide. One offscreen document holds a single tokenizer so the dictionary is parsed once per session instead of once per tab. |
 | `contextMenus` | Adds "Add furigana to selection", "Add furigana to whole page" and "Remove furigana" to the right-click menu. |
-| `activeTab` | Lets the popup and the keyboard shortcut act on the page the user is looking at when they ask for furigana. |
-| `<all_urls>` host permission | Japanese text appears on any site, so the user must be able to turn furigana on wherever they are reading. The extension only reads the text of the page in order to place readings above it; it sends nothing anywhere, and any site can be excluded from the popup's Sites tab. |
+| `activeTab` | The extension requests no host access at install. When the user clicks the toolbar icon, presses the shortcut, or uses the context menu, activeTab grants access to that one tab so the furigana code can be injected there. |
+| `scripting` | Injects the content script into the tab the user just asked about, and — only for origins the user has explicitly granted — registers it to run automatically. |
+| `<all_urls>` as an **optional** host permission | Not requested at install. It is requested at runtime, through Chrome's own prompt, only when the user turns on "Run automatically on Japanese pages", because Japanese text can appear on any site and automatic furigana cannot be scoped in advance. Turning the option off revokes it. The access is used solely to read page text in order to place readings above it; nothing is transmitted anywhere, and individual sites can still be excluded in the popup's Sites tab. |
 
 **Privacy policy URL** (a required field — the store demands one from anything that handles
 user data at all, even data that never leaves the device)
@@ -98,8 +99,11 @@ a Google sign-in:
 2. **New item → upload** `dist/furigana-sensei.zip` (17 MB — under the 2 GB cap).
 3. Paste the fields above; upload the screenshots and the promo tile.
 4. Fill the Privacy tab with the justifications and the privacy policy URL above.
-5. Submit. Review typically takes a few days; the `<all_urls>` permission usually
-   attracts a closer look, which is what the justification above is for.
+5. Submit.
+
+Broad host permissions are the main thing that slows review down, so the extension does
+not request any at install: `<all_urls>` is declared under `optional_host_permissions` and
+asked for at runtime only if the user turns on automatic furigana.
 
 Publishing later versions can be automated with the Web Store API, but it needs OAuth
 credentials tied to that account, so set it up after step 1 if you want it.

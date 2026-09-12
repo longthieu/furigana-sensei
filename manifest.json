@@ -8,10 +8,8 @@
     "storage",
     "offscreen",
     "contextMenus",
-    "activeTab"
-  ],
-  "host_permissions": [
-    "<all_urls>"
+    "activeTab",
+    "scripting"
   ],
   "background": {
     "service_worker": "src/background.js"
@@ -32,25 +30,6 @@
     "128": "icons/icon128.png",
     "48": "icons/icon48.png"
   },
-  "content_scripts": [
-    {
-      "matches": [
-        "<all_urls>"
-      ],
-      "js": [
-        "src/defaults.js",
-        "src/kana.js",
-        "src/align.js",
-        "src/loanwords.js",
-        "src/content.js"
-      ],
-      "css": [
-        "src/content.css"
-      ],
-      "run_at": "document_idle",
-      "all_frames": true
-    }
-  ],
   "web_accessible_resources": [
     {
       "resources": [
@@ -69,5 +48,8 @@
       },
       "description": "Toggle furigana on the current page"
     }
-  }
+  },
+  "optional_host_permissions": [
+    "<all_urls>"
+  ]
 }

@@ -237,6 +237,14 @@ button { font: inherit; color: inherit; cursor: pointer; }
   font-size: 12.5px;
 }
 .opts input { accent-color: var(--accent); width: 14px; height: 14px; }
+.note {
+  display: block;
+  padding: 0 0 6px 23px;
+  font-size: 10.5px;
+  font-style: normal;
+  color: #c8503c;
+}
+.note:empty { display: none; }
 
 /* ----------------------------------------------------------- style tab */
 

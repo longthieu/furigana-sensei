@@ -4,6 +4,54 @@
 importScripts("defaults.js");
 
 const OFFSCREEN_PATH = "src/offscreen.html";
+
+/* ------------------------------------------------------------ injection --
+   The extension asks for no site access at install. It reaches a page one of
+   two ways: activeTab, when the user clicks the toolbar icon, presses the
+   shortcut or uses the context menu; or a dynamically registered content
+   script, on the origins the user has granted for automatic furigana. */
+
+const CONTENT_SCRIPT = {
+  id: "furigana",
+  js: ["src/defaults.js", "src/kana.js", "src/align.js", "src/loanwords.js", "src/content.js"],
+  css: ["src/content.css"],
+  runAt: "document_idle",
+  allFrames: true
+};
+
+/** Put the content script into a tab we have a right to touch, once. */
+async function inject(tabId) {
+  try {
+    await chrome.scripting.insertCSS({ target: { tabId, allFrames: true }, files: CONTENT_SCRIPT.css });
+    await chrome.scripting.executeScript({ target: { tabId, allFrames: true }, files: CONTENT_SCRIPT.js });
+    return true;
+  } catch (err) {
+    // No access to this tab (chrome://, the Web Store, a PDF viewer …), or the
+    // script is already there — content.js guards against running twice.
+    console.warn("[Furigana Sensei] cannot inject here:", err && err.message);
+    return false;
+  }
+}
+
+/** Keep the auto-run registration in step with whatever the user has granted. */
+async function syncRegistration() {
+  const granted = await chrome.permissions.getAll();
+  const origins = granted.origins || [];
+  const existing = await chrome.scripting.getRegisteredContentScripts({ ids: [CONTENT_SCRIPT.id] })
+    .catch(() => []);
+
+  if (!origins.length) {
+    if (existing.length) await chrome.scripting.unregisterContentScripts({ ids: [CONTENT_SCRIPT.id] });
+    return;
+  }
+  const spec = Object.assign({ matches: origins, persistAcrossSessions: true }, CONTENT_SCRIPT);
+  if (existing.length) await chrome.scripting.updateContentScripts([spec]);
+  else await chrome.scripting.registerContentScripts([spec]);
+}
+
+chrome.permissions.onAdded.addListener(syncRegistration);
+chrome.permissions.onRemoved.addListener(syncRegistration);
+chrome.runtime.onStartup.addListener(syncRegistration);
 let creating = null; // in-flight createDocument promise
 
 /* --------------------------------------------------------------- status --
@@ -116,6 +164,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     return;
   }
 
+  if (msg.type === "ensureInjected") {
+    const tabId = msg.tabId;
+    chrome.tabs
+      .sendMessage(tabId, { type: "ping" })
+      .then(() => sendResponse({ ok: true }))
+      .catch(async () => sendResponse({ ok: await inject(tabId) }));
+    return true; // async
+  }
+
+  if (msg.type === "syncRegistration") {
+    syncRegistration().then(() => sendResponse({ ok: true }), () => sendResponse({ ok: false }));
+    return true;
+  }
+
   if (msg.type === "engineStatus") {
     sendResponse({
       phase: engine.phase,
@@ -141,15 +203,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-async function sendToActiveTab(message) {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (tab && tab.id != null) {
+async function sendToTab(tabId, message) {
+  try {
+    await chrome.tabs.sendMessage(tabId, message);
+  } catch (_) {
+    // Not there yet: activeTab lets us put it there, then try once more.
+    if (!(await inject(tabId))) return;
     try {
-      await chrome.tabs.sendMessage(tab.id, message);
-    } catch (_) {
-      /* no content script on this page (chrome:// etc.) */
+      await chrome.tabs.sendMessage(tabId, message);
+    } catch (err) {
+      console.warn("[Furigana Sensei]", err && err.message);
     }
   }
+}
+
+async function sendToActiveTab(message) {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tab && tab.id != null) await sendToTab(tab.id, message);
 }
 
 chrome.commands.onCommand.addListener((command) => {
@@ -160,6 +230,8 @@ chrome.runtime.onInstalled.addListener(async () => {
   const stored = await chrome.storage.sync.get(null);
   const merged = Object.assign({}, self.FSDefaults.DEFAULTS, stored);
   await chrome.storage.sync.set(merged);
+
+  syncRegistration();
 
   chrome.contextMenus.removeAll(() => {
     chrome.contextMenus.create({
@@ -188,5 +260,5 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     "furigana-clear": { type: "clear" }
   };
   const message = map[info.menuItemId];
-  if (message) chrome.tabs.sendMessage(tab.id, message).catch(() => {});
+  if (message) sendToTab(tab.id, message);
 });

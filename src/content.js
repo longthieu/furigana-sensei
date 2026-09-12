@@ -934,6 +934,9 @@
   chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
     if (!msg) return;
     switch (msg.type) {
+      case "ping":
+        sendResponse({ ok: true });   // lets the worker skip a second injection
+        return;
       case "status":
         sendResponse({
           host: location.hostname,

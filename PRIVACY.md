@@ -58,13 +58,19 @@ turn off extension syncing in Chrome's own sync settings.
 
 ## Why it asks for the permissions it does
 
+The extension asks for **no access to any website when you install it**.
+
 | Permission | Why |
 |---|---|
-| Access to all websites | Japanese text turns up on any site, so you have to be able to switch furigana on wherever you are reading. It is used only to read page text in order to place readings above it, and any site can be excluded in the *Sites* tab. |
+| `activeTab` | When you click the toolbar icon, press <kbd>Alt</kbd>+<kbd>F</kbd>, or use the right-click menu, Chrome grants temporary access to that one tab so the extension can add furigana there. It goes away again by itself. |
+| `scripting` | Puts the furigana code into the tab you just asked about. |
 | `storage` | Saves the settings listed above. |
-| `activeTab` | Lets the popup and the <kbd>Alt</kbd>+<kbd>F</kbd> shortcut act on the tab you are looking at. |
 | `contextMenus` | Adds the right-click entries for adding and removing furigana. |
 | `offscreen` | Runs the Japanese analyser in a hidden page, because its dictionary cannot be loaded in a service worker. |
+| Access to all sites — **optional** | Only if you switch on *Run automatically on Japanese pages*. Chrome asks you first, and you can withdraw it at any time by switching that option back off. Without it the extension still works; you just ask for furigana per page instead of getting it automatically. |
+
+Even once granted, that access is used for one thing: reading the text of a page in order to
+place readings above it. Any site can still be excluded in the *Sites* tab.
 
 ## Keeping or removing your data
 
