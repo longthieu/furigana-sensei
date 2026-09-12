@@ -79,6 +79,12 @@ reading above each kanji and offering a dictionary entry for a word on request.
 | `activeTab` | Lets the popup and the keyboard shortcut act on the page the user is looking at when they ask for furigana. |
 | `<all_urls>` host permission | Japanese text appears on any site, so the user must be able to turn furigana on wherever they are reading. The extension only reads the text of the page in order to place readings above it; it sends nothing anywhere, and any site can be excluded from the popup's Sites tab. |
 
+**Privacy policy URL** (a required field — the store demands one from anything that handles
+user data at all, even data that never leaves the device)
+```
+https://github.com/longthieu/furigana-sensei/blob/main/PRIVACY.md
+```
+
 **Remote code:** No — everything, including the dictionaries, is packaged in the extension.
 
 **Data collection:** none of the categories apply. The extension makes no network requests.
@@ -91,7 +97,7 @@ a Google sign-in:
 1. Register at https://chrome.google.com/webstore/devconsole (one-off **$5 USD** fee).
 2. **New item → upload** `dist/furigana-sensei.zip` (17 MB — under the 2 GB cap).
 3. Paste the fields above; upload the screenshots and the promo tile.
-4. Fill the Privacy tab with the justifications above.
+4. Fill the Privacy tab with the justifications and the privacy policy URL above.
 5. Submit. Review typically takes a few days; the `<all_urls>` permission usually
    attracts a closer look, which is what the justification above is for.
 

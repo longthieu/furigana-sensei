@@ -270,6 +270,13 @@ icons/
 The dictionary is vendored because MV3 forbids remote code; it is the same IPADIC that
 ships with [kuromoji.js](https://github.com/takuyaa/kuromoji.js) (Apache-2.0).
 
+## Privacy
+
+No network requests, no accounts, no analytics; page text is read in memory to place the
+readings and then discarded. [PRIVACY.md](PRIVACY.md) has the details, including the one
+thing worth knowing — your settings ride Chrome's own sync to your Google Account if you
+have Chrome Sync on.
+
 ## Licences
 
 The code is MIT. The bundled data is not all under the same terms:
