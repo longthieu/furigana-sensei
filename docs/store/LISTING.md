@@ -40,6 +40,12 @@ strokes — not typeset, so you see the Japanese form even on a page with no Jap
 font. Hover for stroke numbers, click to watch it redraw stroke by stroke, and hover
 a component to light that part up inside the character.
 
+NO ACCESS UNTIL YOU ASK FOR IT
+The extension requests no access to any site when you install it. Click the toolbar
+icon, or press Alt+F, and it adds furigana to the page you are on. If you would rather
+it just happened, turn on "Run automatically on Japanese pages" and Chrome will ask
+you to grant access — switching it back off takes the access away again.
+
 WORKS OFFLINE, SENDS NOTHING
 The Japanese analyser and every dictionary ship inside the extension. It makes no
 network requests at all and collects nothing.
