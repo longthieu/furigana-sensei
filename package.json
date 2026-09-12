@@ -6,7 +6,8 @@
     "test": "node test/align.test.js && node test/content.test.js && node test/background.test.js",
     "sync-vendor": "cp node_modules/kuromoji/build/kuromoji.js vendor/kuromoji.js && cp node_modules/kuromoji/dict/*.dat.gz vendor/dict/",
     "build": "rm -f dist/furigana-sensei.zip && mkdir -p dist && zip -qr dist/furigana-sensei.zip manifest.json src vendor data icons -x '*.DS_Store' && echo 'dist/furigana-sensei.zip'",
-    "build-hanviet": "python3 tools/build-hanviet.py \"${SCRATCH:-.}\""
+    "build-hanviet": "python3 tools/build-hanviet.py \"${SCRATCH:-.}\"",
+    "build-kanji": "python3 tools/build-kanji.py \"${SCRATCH:-.}\""
   },
   "license": "MIT",
   "dependencies": {

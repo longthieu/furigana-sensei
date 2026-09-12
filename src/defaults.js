@@ -11,6 +11,7 @@
     color: "",              // "" = inherit page colour
     opacity: 100,           // 0-100
     hoverOnly: false,       // hide furigana until the word is hovered
+    lookup: true,           // click an annotated word for the reference panel
     katakanaMode: "off",    // off | kana | english — what to do with katakana loanwords
     lineHeight: 2,          // line-height for annotated lines, so ruby cannot overlap
     blocklist: []           // hostnames where the extension stays off

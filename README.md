@@ -26,6 +26,7 @@ with a few extras: romaji output, a "skip the kanji I already know" filter, and 
 | **Per-site off switch** | Turn the current site off, and manage the whole blocklist, in the popup's *Sites* tab |
 | **Undo** | *Remove* restores the original text nodes exactly |
 | **Appearance** | Size, opacity, colour, line spacing |
+| **Look up a word** | Click any annotated word for a panel: the word's meaning, then each kanji shown large in print form with its Hán-Việt, meanings, readings, radical, and the components it is built from |
 | **Shortcut** | <kbd>Alt</kbd>+<kbd>F</kbd> toggles the current page |
 
 Dynamic pages (infinite scroll, SPA routing) are handled by a `MutationObserver`, so
@@ -91,6 +92,34 @@ to a kana reading, because spelling コンピューター back as こんぴゅ�
 
 Glosses are kept short on purpose: a long annotation stretches the katakana underneath it
 and breaks the line, so `パソコン` reads *PC*, not *PC (personal computer)*.
+
+## The reference panel
+
+Click a word that has furigana and a panel opens beside it:
+
+- **The word** — its reading, its Hán-Việt, and an English gloss from JMdict (18,002 common
+  entries). A word outside that list says so rather than guessing.
+- **Each kanji**, large in a Mincho print face, with its Hán-Việt, meanings, on/kun
+  readings, classical radical, stroke count and school grade.
+- **What it is built from** — a chip per component, each labelled with its meaning.
+
+Inside a link a plain click still follows the link; <kbd>Alt</kbd>+click opens the panel
+there. The whole thing can be turned off in the popup.
+
+The data — `data/kanji.json` (10,384 characters), `data/components.json` (253) and
+`data/words.json` (18,002) — is built by `tools/build-kanji.py` and totals 2.4 MB, fetched
+the first time you open the panel and never before.
+
+**One thing worth knowing about the components.** KRADFILE is a *visual* decomposition
+built for radical-based lookup, not an etymology: 亜 is listed as ｜一口 because that is
+what the glyph looks like. It also writes several radical forms as an ordinary kanji that
+contains them — 漢 is listed with 汁, meaning 氵, not "soup". The build script finds every
+one of those mechanically (radkfile records the stroke count of the shape a radical stands
+for, so a mismatch against the character's own count gives them away) and then takes the
+meaning from the classical radical its kanji overwhelmingly share: 汁 → 水 *water* at 88%
+agreement, 忙 → 心 *heart* at 99%. Where they share no radical — the stand-in marks a shape
+that can sit anywhere in the glyph, like 灬 — no meaning is claimed at all and the chip
+says "shape — also in 点馬魚" instead.
 
 ## Hán-Việt readings
 
@@ -200,11 +229,24 @@ manifest.json
 src/    defaults.js  kana.js  align.js  loanwords.js  content.js  content.css
         background.js  offscreen.html  offscreen.js
         popup.html  popup.css  popup.js
-data/   hanviet.json                      (132 KB, fetched lazily — see above)
+data/   hanviet.json  kanji.json  components.json  words.json
+                                          (2.5 MB total, all fetched lazily)
 vendor/ kuromoji.js  dict/*.dat.gz        (17 MB — vendored, see `npm run sync-vendor`)
-tools/  build-hanviet.py
+tools/  build-hanviet.py  build-kanji.py
 icons/
 ```
 
 The dictionary is vendored because MV3 forbids remote code; it is the same IPADIC that
 ships with [kuromoji.js](https://github.com/takuyaa/kuromoji.js) (Apache-2.0).
+
+## Licences
+
+The code is MIT. The bundled data is not all under the same terms:
+
+| | |
+|---|---|
+| `vendor/` (IPADIC via kuromoji.js) | Apache-2.0 |
+| `data/kanji.json`, `data/components.json`, `data/words.json` | derived from KANJIDIC2, KRADFILE/RADKFILE and JMdict — © [EDRDG](https://www.edrdg.org/), **CC BY-SA 4.0**. The reference panel credits them on screen. |
+| `data/hanviet.json` | built from hanviet-pinyin-words (MIT), kyujitai (MIT) and Unihan |
+
+CC BY-SA is share-alike: those three files, and anything derived from them, stay under it.

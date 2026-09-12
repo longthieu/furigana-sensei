@@ -15,6 +15,7 @@ const HTML = `<!doctype html><html><body>
   <p id="zh" lang="zh">我在北京的大学学习经济。</p>
   <div lang="zh"><p id="ja-in-zh" lang="ja">東京で勉強する。</p></div>
   <p id="inline">Our office is in 東京 and opens at 9am.</p>
+  <p id="linkword"><a href="https://example.com/">東京の記事</a></p>
 </body></html>`;
 
 function stubChrome(tokenizer) {
@@ -180,6 +181,59 @@ kuromoji.builder({ dicPath: "node_modules/kuromoji/dict" }).build(async (err, to
   const once = doc.querySelectorAll("ruby").length;
   await send(stub.listeners, { type: "run", scope: "page" });
   assert(doc.querySelectorAll("ruby").length === once, "re-running does not double-annotate");
+
+  // Clicking an annotated word opens the reference panel.
+  await send(stub.listeners, { type: "run", scope: "page" });
+  const target = [...doc.querySelectorAll(".fs-wrap ruby")].find(
+    (r) => r.firstChild.nodeValue === "勉強"
+  );
+  assert(!!target, "found the 勉強 ruby to click");
+  target.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  // The panel fetches ~2.4 MB of reference data before it can render.
+  for (let i = 0; i < 60 && !doc.querySelector(".fs-word"); i++) {
+    await new Promise((r) => setTimeout(r, 50));
+  }
+
+  const panel = doc.querySelector(".fs-panel");
+  assert(!!panel, "clicking an annotated word opens the panel");
+  assert(
+    panel && panel.querySelector(".fs-word").textContent === "勉強",
+    "the panel is about the word that was clicked"
+  );
+  assert(
+    panel && /study/.test(panel.querySelector(".fs-word-gloss").textContent),
+    `the word gloss comes from JMdict (got "${panel && panel.querySelector(".fs-word-gloss").textContent}")`
+  );
+  assert(
+    panel && panel.querySelectorAll(".fs-kanji").length === 2,
+    "one block per kanji in the word"
+  );
+  const chips = panel ? [...panel.querySelectorAll(".fs-part")].map((c) => c.textContent) : [];
+  assert(
+    chips.some((c) => c.includes("power")) && chips.some((c) => c.includes("excuse")),
+    `components are labelled with their meaning (got ${JSON.stringify(chips)})`
+  );
+
+  // 漢 is written with 汁 in KRADFILE, standing for 氵 — it must not say "soup".
+  const kanjiTable = JSON.parse(
+    fs.readFileSync(path.join(__dirname, "..", "data", "components.json"), "utf8")
+  );
+  assert(
+    Array.isArray(kanjiTable["汁"]) && kanjiTable["汁"][1] === "water",
+    `the 汁 stand-in resolves to water (got ${JSON.stringify(kanjiTable["汁"])})`
+  );
+
+  // A plain click inside a link belongs to the page, not to us.
+  doc.querySelector(".fs-panel").remove();
+  const linked = doc.getElementById("linkword").querySelector("ruby");
+  linked.dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+  await new Promise((r) => setTimeout(r, 60));
+  assert(
+    !doc.querySelector(".fs-panel"),
+    "a plain click inside a link does not hijack navigation"
+  );
+
+  await send(stub.listeners, { type: "clear" });
 
   // Reloading the extension orphans this script: chrome.runtime.id goes away
   // and every chrome.* call throws. Nothing may escape as an unhandled

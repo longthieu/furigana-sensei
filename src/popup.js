@@ -121,6 +121,7 @@ function renderControls() {
 
   $("autoRun").checked = settings.autoRun;
   $("hoverOnly").checked = settings.hoverOnly;
+  $("lookup").checked = settings.lookup;
 
   for (const group of ["script", "skipLevel", "katakanaMode"]) {
     for (const btn of $(group).children) {
@@ -245,7 +246,7 @@ function wire() {
     if (btn) selectTab(btn.dataset.tab);
   });
 
-  for (const id of ["autoRun", "hoverOnly"]) {
+  for (const id of ["autoRun", "hoverOnly", "lookup"]) {
     $(id).addEventListener("change", (e) => save({ [id]: e.target.checked }));
   }
 

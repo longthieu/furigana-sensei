@@ -99,6 +99,39 @@
     return hanvietLoading;
   }
 
+  var ref = null;          // { kanji, components, words }
+  var refLoading = null;
+
+  function loadJson(name) {
+    return fetch(chrome.runtime.getURL("data/" + name)).then(function (r) {
+      return r.json();
+    });
+  }
+
+  /** ~2.4 MB of reference data, so it waits until someone opens the panel. */
+  function loadRef() {
+    if (ref) return Promise.resolve(ref);
+    if (refLoading) return refLoading;
+    if (!alive()) return Promise.resolve(null);
+
+    refLoading = Promise.all([
+      loadJson("kanji.json"),
+      loadJson("components.json"),
+      loadJson("words.json"),
+      loadHanviet()
+    ])
+      .then(function (parts) {
+        ref = { kanji: parts[0], components: parts[1], words: parts[2] };
+        return ref;
+      })
+      .catch(function (err) {
+        console.warn("[Furigana Sensei] reference data failed to load", err);
+        refLoading = null;
+        return null;
+      });
+    return refLoading;
+  }
+
   /**
    * Hán-Việt is per character, not per word: 東京 -> "đông kinh".
    * Returns null if any character is missing (kokuji such as 峠 have no
@@ -127,8 +160,9 @@
     return false;
   }
 
-  function rubyEl(base, reading, kind) {
+  function rubyEl(base, reading, kind, word) {
     var ruby = document.createElement("ruby");
+    if (word && word !== base) ruby.setAttribute("data-fs-w", word);
     ruby.appendChild(document.createTextNode(base));
     var rt = document.createElement("rt");
 
@@ -169,7 +203,7 @@
           // kana reading here would just spell the katakana back at the reader.
           var english = window.FSLoan.lookup(surface);
           if (english) {
-            frag.appendChild(rubyEl(surface, english, "en"));
+            frag.appendChild(rubyEl(surface, english, "en", surface));
             annotated++;
           } else {
             frag.appendChild(document.createTextNode(surface));
@@ -182,7 +216,7 @@
           frag.appendChild(document.createTextNode(surface));
           return;
         }
-        frag.appendChild(rubyEl(surface, toHira(reading)));
+        frag.appendChild(rubyEl(surface, toHira(reading), "kana", surface));
         annotated++;
         return;
       }
@@ -199,9 +233,11 @@
           var hv = hanvietOf(p.t);
           // No Hán-Việt for this character: show the kana reading rather than
           // silently dropping the annotation.
-          frag.appendChild(hv ? rubyEl(p.t, hv, "hv") : rubyEl(p.t, p.r, "kana"));
+          frag.appendChild(
+            hv ? rubyEl(p.t, hv, "hv", surface) : rubyEl(p.t, p.r, "kana", surface)
+          );
         } else {
-          frag.appendChild(rubyEl(p.t, p.r));
+          frag.appendChild(rubyEl(p.t, p.r, "kana", surface));
         }
         annotated++;
       });
@@ -465,6 +501,195 @@
     root.classList.toggle("fs-hover-only", !!settings.hoverOnly);
   }
 
+  /* ------------------------------------------------- reference panel ----- */
+
+  var panel = null;
+
+  function closePanel() {
+    if (!panel) return;
+    panel.remove();
+    panel = null;
+    document.removeEventListener("keydown", onPanelKey, true);
+    document.removeEventListener("mousedown", onPanelClickAway, true);
+  }
+
+  function onPanelKey(e) {
+    if (e.key === "Escape") closePanel();
+  }
+
+  function onPanelClickAway(e) {
+    if (panel && !panel.contains(e.target)) closePanel();
+  }
+
+  function openPanel(rect) {
+    closePanel();
+    panel = document.createElement("div");
+    panel.className = "fs-panel";
+
+    var width = 320;
+    var left = Math.min(Math.max(8, rect.left - 20), window.innerWidth - width - 8);
+    panel.style.left = left + "px";
+    panel.style.top = rect.bottom + 12 + "px";
+    panel.__anchor = rect;
+
+    document.body.appendChild(panel);
+    document.addEventListener("keydown", onPanelKey, true);
+    setTimeout(function () {
+      document.addEventListener("mousedown", onPanelClickAway, true);
+    }, 0);
+    return panel;
+  }
+
+  /** Keep the panel on screen once its real height is known. */
+  function fitPanel() {
+    if (!panel) return;
+    var rect = panel.__anchor;
+    var height = panel.offsetHeight;
+    var top = rect.bottom + 12;
+    if (top + height > window.innerHeight - 8) {
+      // Prefer above the word; otherwise pin it to the bottom of the viewport.
+      var above = rect.top - height - 12;
+      top = above >= 8 ? above : Math.max(8, window.innerHeight - height - 8);
+    }
+    panel.style.top = top + "px";
+  }
+
+  function el(tag, className, text) {
+    var node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  /** One component chip: the glyph as KRADFILE writes it, plus what it means. */
+  function componentChip(part) {
+    var entry = ref.components[part];
+    var glyph = part;
+    var label = "";
+    if (Array.isArray(entry)) {
+      glyph = entry[0]; // KRADFILE wrote a stand-in; show the real radical
+      label = entry[1];
+    } else if (entry) {
+      label = entry;
+    }
+    var chip = el("span", "fs-part");
+    chip.append(el("b", null, glyph), el("span", null, label));
+    return chip;
+  }
+
+  function kanjiBlock(ch) {
+    var entry = ref.kanji[ch];
+    var block = el("div", "fs-kanji");
+
+    var glyph = el("div", "fs-glyph", ch);
+    block.appendChild(glyph);
+
+    var body = el("div", "fs-kanji-body");
+    if (!entry) {
+      body.appendChild(el("p", "fs-dim", "No entry for this character."));
+      block.appendChild(body);
+      return block;
+    }
+
+    var hv = hanviet && hanviet[ch];
+    if (hv) body.appendChild(el("p", "fs-hanviet", hv));
+    body.appendChild(el("p", "fs-meaning", entry.m.join(", ")));
+
+    var readings = [];
+    if (entry.on && entry.on.length) readings.push(entry.on.join("\u3001"));
+    if (entry.kun && entry.kun.length) readings.push(entry.kun.join("\u3001"));
+    if (readings.length) body.appendChild(el("p", "fs-readings", readings.join("  \u00b7  ")));
+
+    var facts = [];
+    if (entry.r) facts.push("radical " + entry.r[0] + " (" + entry.r[1] + ")");
+    if (entry.s) facts.push(entry.s + " strokes");
+    if (entry.g) facts.push("grade " + entry.g);
+    if (facts.length) body.appendChild(el("p", "fs-dim", facts.join(" \u00b7 ")));
+
+    if (entry.c && entry.c.length) {
+      var parts = el("div", "fs-parts");
+      entry.c.forEach(function (part) {
+        parts.appendChild(componentChip(part));
+      });
+      body.appendChild(parts);
+    }
+
+    block.appendChild(body);
+    return block;
+  }
+
+  function renderPanel(word) {
+    if (!panel) return;
+    panel.textContent = "";
+
+    var close = el("button", "fs-panel-x", "\u00d7");
+    close.setAttribute("aria-label", "Close");
+    close.addEventListener("click", closePanel);
+    panel.appendChild(close);
+
+    var head = el("div", "fs-panel-head");
+    head.appendChild(el("div", "fs-word", word));
+
+    var entry = ref.words[word];
+    var sub = [];
+    if (entry && entry[0]) sub.push(entry[0]);
+    var hv = hanvietOf(word);
+    if (hv) sub.push(hv);
+    if (sub.length) head.appendChild(el("p", "fs-word-sub", sub.join("  \u00b7  ")));
+    if (entry && entry[1]) head.appendChild(el("p", "fs-word-gloss", entry[1]));
+    else head.appendChild(el("p", "fs-dim", "Not in the common-word list."));
+    panel.appendChild(head);
+
+    var seen = {};
+    for (var i = 0; i < word.length; i++) {
+      var ch = word[i];
+      if (!isKanjiChar(ch) || seen[ch]) continue;
+      seen[ch] = true;
+      panel.appendChild(kanjiBlock(ch));
+    }
+
+    panel.appendChild(el("p", "fs-credit", "KANJIDIC2 \u00b7 KRADFILE \u00b7 JMdict \u2014 EDRDG, CC BY-SA"));
+    fitPanel();
+  }
+
+  function lookUp(target) {
+    var word = target.getAttribute("data-fs-w") || target.textContent;
+    // Strip the reading: textContent of a <ruby> includes its <rt>.
+    var rt = target.querySelector("rt");
+    if (!target.getAttribute("data-fs-w") && rt) {
+      word = target.firstChild ? target.firstChild.nodeValue : word;
+    }
+    if (!word) return;
+
+    var rect = target.getBoundingClientRect();
+    openPanel(rect);
+    panel.appendChild(el("p", "fs-panel-loading", "Loading dictionary\u2026"));
+
+    loadRef().then(function (loaded) {
+      if (!panel) return;
+      if (!loaded) {
+        panel.textContent = "";
+        panel.appendChild(el("p", "fs-panel-loading", "Reference data unavailable."));
+        return;
+      }
+      renderPanel(word);
+    });
+  }
+
+  document.addEventListener("click", function (e) {
+    if (!settings.lookup || stopped) return;
+    var ruby = e.target.closest && e.target.closest(".fs-wrap ruby");
+    if (!ruby) return;
+
+    // Inside a link a plain click belongs to the page; ask for Alt there.
+    var inLink = ruby.closest("a[href]");
+    if (inLink && !e.altKey) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+    lookUp(ruby);
+  }, true);
+
   /* ---------------------------------------------------------------- toast */
 
   function showToast(text) {
@@ -561,6 +786,7 @@
         );
         return true;
       case "clear":
+        closePanel();
         clear();
         stopObserver();
         sendResponse({ ok: true });
